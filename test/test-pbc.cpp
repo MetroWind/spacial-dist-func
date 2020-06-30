@@ -5,7 +5,7 @@
 
 using v3 = Eigen::Vector3f;
 
-TEST_CASE("PBC")
+TEST_CASE("PBC dist")
 {
     libmd::RectPbc3d Pbc(4, 8, 10);
     {
@@ -34,4 +34,35 @@ TEST_CASE("PBC")
         CHECK(Pbc.dist(a, b) == 4.0f);
     }
 
+}
+
+TEST_CASE("PBC wrap")
+{
+    libmd::RectPbc3d Pbc(4, 8, 10);
+    {
+        const v3 a(0, 0, 9);
+        v3 b(0, 0, 11);
+        v3 c = b;
+        Pbc.wrapVec(a, b);
+        CHECK(b == c);
+    }
+    {
+        v3 a(0, 0, 9);
+        const v3 b(0, 0, 11);
+        v3 c = a;
+        Pbc.wrapVec(b, a);
+        CHECK(a == c);
+    }
+    {
+        const v3 a(0, 0, 1);
+        v3 b(0, 0, 11);
+        Pbc.wrapVec(a, b);
+        CHECK(a == b);
+    }
+    {
+        v3 a(0, 0, 1);
+        const v3 b(0, 0, 11);
+        Pbc.wrapVec(b, a);
+        CHECK(a == b);
+    }
 }

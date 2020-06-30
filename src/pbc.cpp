@@ -33,5 +33,26 @@ namespace libmd
         return x*x + y*y + z*z;
     }
 
+    float RectPbc3d :: wrap1d(const size_t dim_idx, float base, float rhs) const
+    {
+        const float Dim = Dimension[dim_idx];
+        float Dist = rhs - base;
+        if(Dist > Dim || -Dist >= Dim)
+        {
+            rhs -= std::floor(Dist / Dim) * Dim;
+        }
+        if(rhs - base > Dim * 0.5)
+        {
+            rhs -= Dim;
+        }
+        return rhs;
+    }
+
+    void RectPbc3d :: wrapVec(const float base[], float to_wrap[]) const
+    {
+        to_wrap[0] = wrap1d(0, base[0], to_wrap[0]);
+        to_wrap[1] = wrap1d(1, base[1], to_wrap[1]);
+        to_wrap[2] = wrap1d(2, base[2], to_wrap[2]);
+    }
 
 } // namespace libmd
