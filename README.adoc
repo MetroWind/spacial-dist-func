@@ -1,0 +1,12 @@
+= Spacial Distribution Function
+
+== Build
+
+- Need http://eigen.tuxfamily.org/[Eigen] installation
+- Optional: https://github.com/catchorg/Catch2[Catch2] for unit tests.
+
+[source,bash]
+----
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release && make
+----
