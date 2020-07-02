@@ -45,6 +45,11 @@ namespace libmd
         {
             rhs -= Dim;
         }
+        else if(base - rhs > Dim * 0.5) // See test case “PBC wrap forward”.
+        {
+            rhs += Dim;
+        }
+
         return rhs;
     }
 

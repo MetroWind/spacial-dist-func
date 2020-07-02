@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.1)
 project(sdf LANGUAGES CXX VERSION 0.0.1)
 
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic -Werror")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
@@ -27,6 +27,7 @@ target_link_libraries(not_test Eigen3::Eigen)
 set(TestFiles
   test/test-xtcio.cpp
   test/test-pbc.cpp
+  test/utils.h
   )
 
 IF(Catch2_FOUND)

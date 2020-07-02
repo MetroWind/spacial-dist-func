@@ -15,7 +15,9 @@ namespace libmd
         using VecRefType = Eigen::Ref<Eigen::Vector3f>;
 
         RectPbc3d() = delete;
-        RectPbc3d(float x, float y, float z) : Dimension({ x, y, z }) {}
+        RectPbc3d(float x, float y, float z)
+                : DiagLength(std::sqrt(x*x + y*y + z*z)),
+                  Dimension({ x, y, z }) {}
 
         float dist(const VecRefType& lhs, const VecRefType& rhs) const
         {
@@ -38,6 +40,8 @@ namespace libmd
         {
             wrapVec(base.data(), to_wrap.data());
         }
+
+        const float DiagLength;
 
     private:
         float dist1d(const size_t dim_idx, float lhs, float rhs) const;
