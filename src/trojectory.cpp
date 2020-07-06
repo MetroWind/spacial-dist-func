@@ -95,8 +95,6 @@ namespace libmd
     void Trojectory :: close()
     {
         if(f.isOpen()) { f.close(); }
-        Vecs.clear();
-        Data.clear();
     }
 
 } // namespace libmd

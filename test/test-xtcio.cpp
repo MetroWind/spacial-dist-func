@@ -1,6 +1,7 @@
 #include <catch2/catch.hpp>
 #include <Eigen/Dense>
 
+#include "utils.h"
 #include "xtcio.h"
 #include "trojectory.h"
 
@@ -56,4 +57,22 @@ TEST_CASE("Trojectory")
 
     REQUIRE_FALSE(t.nextFrame());
     t.close();
+}
+
+TEST_CASE("Trojectory filter")
+{
+    libmd::Trojectory t;
+    t.open("../test/test.xtc", "../test/test.gro");
+    t.nextFrame();
+    t.close();
+
+    t.filter([](const std::string& name, size_t _1,
+                const typename libmd::Trojectory::V3Map& _2)
+             {
+                 UNUSED(_1); UNUSED(_2);
+                 return name == "BCDEF";
+             });
+    CHECK(t.meta().AtomCount == 1);
+    CHECK(t.data().size() == 3);
+    CHECK(t.vec("BCDEF").isApprox(Eigen::Vector3f(4.145, 2.535, 4.553)));
 }

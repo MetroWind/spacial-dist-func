@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
 #include <Eigen/Dense>
 
-#include "utils.h"
+#include "testutils.h"
 #include "pbc.h"
 
 using v3 = Eigen::Vector3f;
