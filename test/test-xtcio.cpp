@@ -66,13 +66,14 @@ TEST_CASE("Trojectory filter")
     t.nextFrame();
     t.close();
 
-    t.filter([](const std::string& name, size_t _1,
-                const typename libmd::Trojectory::V3Map& _2)
-             {
-                 UNUSED(_1); UNUSED(_2);
-                 return name == "BCDEF";
-             });
-    CHECK(t.meta().AtomCount == 1);
-    CHECK(t.data().size() == 3);
-    CHECK(t.vec("BCDEF").isApprox(Eigen::Vector3f(4.145, 2.535, 4.553)));
+    auto Snap = t.filter(
+        [](const std::string& name, size_t _1,
+           const typename libmd::V3Map& _2)
+        {
+            UNUSED(_1); UNUSED(_2);
+            return name == "BCDEF";
+        });
+    CHECK(Snap.meta().AtomCount == 1);
+    CHECK(Snap.data().size() == 3);
+    CHECK(Snap.vec("BCDEF").isApprox(Eigen::Vector3f(4.145, 2.535, 4.553)));
 }

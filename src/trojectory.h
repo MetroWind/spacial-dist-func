@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <stdexcept>
 
 #include <Eigen/Dense>
 
@@ -11,10 +12,8 @@
 
 namespace libmd
 {
-    using V3Map = Eigen::Map<Eigen::Vector3f>;
-
     // A snapshot of a frame of a trojectory. This is only
-    // constructable by using Trojectory::filter().
+    // constructable by using Trojectory::filter(), or copying.
     //
     // Has the same interface with Trojectory, minus the file-related
     // part.
@@ -22,6 +21,9 @@ namespace libmd
     {
     public:
         TrojectorySnapshot() = delete;
+        TrojectorySnapshot(const TrojectorySnapshot& from) = default;
+        TrojectorySnapshot& operator=(const TrojectorySnapshot& from)
+        = default;
 
         V3Map& vec(const std::string& atom_name)
         {
@@ -55,6 +57,9 @@ namespace libmd
         {
             return Data;
         }
+
+        std::string debugString() const;
+
     private:
         TrojectorySnapshot(size_t size)
                 : AtomNames(size), Data(size*3) {}
@@ -68,6 +73,11 @@ namespace libmd
         friend class Trojectory;
     };
 
+    // This wraps a XtcFile class and provides high level access
+    // throught vec(). If I’m using C++20 I would make a concept out
+    // of this and the snapshot type.
+    //
+    // This class does not care about boxes and boundary conditions.
     class Trojectory
     {
     public:
@@ -96,9 +106,28 @@ namespace libmd
         }
 
         const XtcFile::FrameMeta& meta() const { return Meta; }
+
+        const std::unordered_map<std::string, size_t>& atoms() const
+        {
+            return AtomNamesReverse;
+        }
+
         bool hasAtom(const std::string& name)
         {
             return AtomNamesReverse.find(name) != std::end(AtomNamesReverse);
+        }
+
+        size_t index(const std::string& name)
+        {
+            auto Found = AtomNamesReverse.find(name);
+            if(Found == std::end(AtomNamesReverse))
+            {
+                throw std::out_of_range(std::string("unknown atom: ") + name);
+            }
+            else
+            {
+                return Found->second;
+            }
         }
 
         size_t size() const { return Vecs.size(); }
@@ -121,7 +150,9 @@ namespace libmd
         //
         // This does not change meta(), but it does change size().
         template <class FilterFunc>
-        TrojectorySnapshot filter(FilterFunc func);
+        TrojectorySnapshot filter(FilterFunc func) const;
+
+        std::string debugString() const;
 
     private:
         std::vector<std::string> AtomNames;
@@ -137,7 +168,7 @@ namespace libmd
     };
 
     template <class FilterFunc>
-    TrojectorySnapshot Trojectory :: filter(FilterFunc func)
+    TrojectorySnapshot Trojectory :: filter(FilterFunc func) const
     {
         std::vector<size_t> Passed;
         for(size_t i = 0; i < Vecs.size(); i++)
@@ -149,34 +180,35 @@ namespace libmd
         }
 
         TrojectorySnapshot Snap(Passed.size());
+        Snap.Meta = Meta;
+        Snap.Meta.AtomCount = Passed.size();
+
         for(size_t i = 0; i < Passed.size(); i++)
         {
             Snap.AtomNames[i] = AtomNames[Passed[i]];
         }
-            for(size_t i = 0; i < Passed.size(); i++)
-            {
-                const size_t NewIdx = Passed[i];
-                NewData[i*3] = Data[NewIdx*3];
-                NewData[i*3+1] = Data[NewIdx*3+1];
-                NewData[i*3+2] = Data[NewIdx*3+2];
-            }
 
-            AtomNames = std::move(NewNames);
-            Data = std::move(NewData);
+        for(size_t i = 0; i < Passed.size(); i++)
+        {
+            const size_t NewIdx = Passed[i];
+            Snap.Data[i*3] = Data[NewIdx*3];
+            Snap.Data[i*3+1] = Data[NewIdx*3+1];
+            Snap.Data[i*3+2] = Data[NewIdx*3+2];
         }
 
         // Rebuild AtomNamesReverse and Vecs.
-        AtomNamesReverse.clear();
-        for(size_t i = 0; i < AtomNames.size(); i++)
+        Snap.AtomNamesReverse.clear();
+        for(size_t i = 0; i < Snap.AtomNames.size(); i++)
         {
-            AtomNamesReverse[AtomNames[i]] = i;
+            Snap.AtomNamesReverse[Snap.AtomNames[i]] = i;
         }
 
-        Vecs.clear();
-        for(size_t i = 0; i < AtomNames.size(); i++)
+        Snap.Vecs.clear();
+        for(size_t i = 0; i < Snap.AtomNames.size(); i++)
         {
-            Vecs.emplace_back(&(Data[i*3]));
+            Snap.Vecs.emplace_back(&(Snap.Data[i*3]));
         }
+        return Snap;
     }
 
 } // namespace libmd

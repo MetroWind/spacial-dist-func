@@ -20,6 +20,8 @@ set(TheFiles
   src/pbc.h
   src/pbc.cpp
   src/utils.h
+  src/sdf.h
+  src/sdf.cc
   )
 
 add_executable(not_test src/test.cpp ${TheFiles})
@@ -28,6 +30,7 @@ target_link_libraries(not_test Eigen3::Eigen)
 set(TestFiles
   test/test-xtcio.cpp
   test/test-pbc.cpp
+  test/test-sdf.cpp
   test/testutils.h
   )
 

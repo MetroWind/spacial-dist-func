@@ -7,13 +7,13 @@
 
 #include <Eigen/Dense>
 
+#include "utils.h"
+
 namespace libmd
 {
     class RectPbc3d
     {
     public:
-        using VecRefType = Eigen::Ref<Eigen::Vector3f>;
-
         RectPbc3d() = delete;
         RectPbc3d(float x, float y, float z)
                 : DiagLength(std::sqrt(x*x + y*y + z*z)),

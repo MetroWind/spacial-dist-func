@@ -1,3 +1,4 @@
+// -*- mode: c++; -*-
 #ifndef SDF_TEST_UTILS_H
 #define SDF_TEST_UTILS_H
 
@@ -11,13 +12,13 @@ namespace TestGlobal
     static std::mt19937 RandAlgo(Dev());
 }
 
-float randUni(float low, float high)
+inline float randUni(float low, float high)
 {
     std::uniform_real_distribution<float> Dist(low, high);
     return Dist(TestGlobal::RandAlgo);
 }
 
-Eigen::Vector3f randVec(std::pair<float, float> rangex,
+inline Eigen::Vector3f randVec(std::pair<float, float> rangex,
                         std::pair<float, float> rangey,
                         std::pair<float, float> rangez)
 {

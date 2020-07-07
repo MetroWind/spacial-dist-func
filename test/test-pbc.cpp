@@ -66,6 +66,14 @@ TEST_CASE("PBC wrap")
         Pbc.wrapVec(b, a);
         CHECK(a == b);
     }
+
+    // Self-wrap
+    {
+        v3 a = randVec({-100, 100}, {-100, 100}, {-100, 100});
+        v3 b = a;
+        Pbc.wrapVec(a, a);
+        CHECK(a == b);
+    }
 }
 
 TEST_CASE("PBC wrap forward")
@@ -88,7 +96,7 @@ TEST_CASE("PBC wrap random vec")
         // std::cout << "\nBefore wrap: \n" << a << "\n\n" << b << std::endl;
         Pbc.wrapVec(a, b);
         // std::cout << "\nAfter wrap: \n" << a << "\n\n" << b << std::endl;
-        CHECK((a-b).norm() == Approx(Dist));
+        CHECK((a-b).norm() == Approx(Dist).scale(0.0001));
         CHECK(Dist <= Pbc.DiagLength * 0.5);
     }
 }

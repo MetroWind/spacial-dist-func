@@ -1,6 +1,7 @@
 #include <fstream>
 #include <array>
 #include <sstream>
+#include <cstdio>
 #include <cstring>
 
 #include "trojectory.h"
@@ -53,6 +54,19 @@ namespace libmd
 
     } // namespace
 
+    std::string TrojectorySnapshot :: debugString() const
+    {
+        std::stringstream Formatter;
+        for(size_t i = 0; i < static_cast<size_t>(meta().AtomCount); i++)
+        {
+            std::array<char, 128> Buffer;
+            std::sprintf(Buffer.data(), "%5s %5.3f %5.3f %5.3f\n",
+                         AtomNames[i].c_str(), vec(i)[0], vec(i)[1], vec(i)[2]);
+            Formatter << Buffer.data();
+        }
+        return Formatter.str();
+    }
+
     void Trojectory :: open(const std::string& xtc_path,
                             const std::string& gro_path)
     {
@@ -95,6 +109,19 @@ namespace libmd
     void Trojectory :: close()
     {
         if(f.isOpen()) { f.close(); }
+    }
+
+    std::string Trojectory :: debugString() const
+    {
+        std::stringstream Formatter;
+        for(size_t i = 0; i < static_cast<size_t>(meta().AtomCount); i++)
+        {
+            std::array<char, 128> Buffer;
+            std::sprintf(Buffer.data(), "%5s %5.3f %5.3f %5.3f\n",
+                         AtomNames[i].c_str(), vec(i)[0], vec(i)[1], vec(i)[2]);
+            Formatter << Buffer.data();
+        }
+        return Formatter.str();
     }
 
 } // namespace libmd
