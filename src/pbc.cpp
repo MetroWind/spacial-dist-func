@@ -23,8 +23,8 @@ namespace libmd
         }
     }
 
-    float RectPbc3d :: distSquare(const RectPbc3d::VecRefType& lhs,
-                                  const RectPbc3d::VecRefType& rhs) const
+    float RectPbc3d :: distSquare(const VecRefType& lhs,
+                                  const VecRefType& rhs) const
     {
         float x = dist1d(0, lhs[0], rhs[0]);
         float y = dist1d(1, lhs[1], rhs[1]);

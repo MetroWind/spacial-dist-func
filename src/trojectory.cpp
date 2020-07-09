@@ -3,6 +3,7 @@
 #include <sstream>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 
 #include "trojectory.h"
 
@@ -10,23 +11,9 @@ namespace libmd
 {
     namespace
     {
-        // Equivalent of Python’s str.strip().
-        std::string strip(const std::string& str,
-                          const std::string& whitespace = " \t\n")
-        {
-            const auto StrBegin = str.find_first_not_of(whitespace);
-            if (StrBegin == std::string::npos)
-                return ""; // no content
-
-            const auto StrEnd = str.find_last_not_of(whitespace);
-            const auto StrRange = StrEnd - StrBegin + 1;
-
-            return str.substr(StrBegin, StrRange);
-        }
-
         // Extract names from .gro file. Format spec:
         // http://manual.gromacs.org/current/reference-manual/file-formats.html#gro.
-        std::vector<std::string> extractAtomNames(std::ifstream& file)
+        std::vector<AtomIdentifier> extractAtomIds(std::ifstream& file)
         {
             std::array<char, 1024> Buffer;
             // Skip 1st line
@@ -40,19 +27,44 @@ namespace libmd
                 Reader >> Count;
             }
 
-            std::vector<std::string> Result;
+            std::vector<AtomIdentifier> Result;
             for(size_t i = 0; i < Count; i++)
             {
                 file.getline(Buffer.data(), Buffer.size());
                 // The name starts at column 11, and is 5 chars long.
-                std::string Name(Buffer.data() + 10, Buffer.data() + 15);
-                Result.push_back(strip(Name));
+                const std::string Res(Buffer.data() + 0, Buffer.data() + 5);
+                const std::string Name(Buffer.data() + 10, Buffer.data() + 15);
+
+                AtomIdentifier Id(std::atoi(Res.c_str()), strip(Name));
+                Result.emplace_back(std::move(Id));
             }
 
             return Result;
         }
 
     } // namespace
+
+    AtomIdentifier :: AtomIdentifier(const std::string& s)
+    {
+        auto SepPos = s.find("+");
+        Res = std::atoi(s.substr(0, SepPos).c_str());
+        Name = s.substr(SepPos + 1, s.size() - SepPos - 1);
+    }
+
+    AtomIdentifier :: AtomIdentifier(const char s[])
+    {
+        size_t i;
+        size_t SepPos = 0;
+        for(i = 0; s[i] != '\0'; i++)
+        {
+            if(s[i] == '+')
+            {
+                Res = std::atoi(std::string(s, i).c_str());
+                SepPos = i;
+            }
+        }
+        Name = std::string(s + SepPos + 1, i - SepPos - 1);
+    }
 
     std::string TrojectorySnapshot :: debugString() const
     {
@@ -61,7 +73,8 @@ namespace libmd
         {
             std::array<char, 128> Buffer;
             std::sprintf(Buffer.data(), "%5s %5.3f %5.3f %5.3f\n",
-                         AtomNames[i].c_str(), vec(i)[0], vec(i)[1], vec(i)[2]);
+                         AtomNames[i].toStr().c_str(),
+                         vec(i)[0], vec(i)[1], vec(i)[2]);
             Formatter << Buffer.data();
         }
         return Formatter.str();
@@ -73,7 +86,7 @@ namespace libmd
         f.open(xtc_path.c_str());
 
         std::ifstream GroFile(gro_path);
-        AtomNames = extractAtomNames(GroFile);
+        AtomNames = extractAtomIds(GroFile);
 
         Meta = f.readFrameMeta();
         if(static_cast<size_t>(Meta.AtomCount) != AtomNames.size())
@@ -118,7 +131,8 @@ namespace libmd
         {
             std::array<char, 128> Buffer;
             std::sprintf(Buffer.data(), "%5s %5.3f %5.3f %5.3f\n",
-                         AtomNames[i].c_str(), vec(i)[0], vec(i)[1], vec(i)[2]);
+                         AtomNames[i].toStr().c_str(),
+                         vec(i)[0], vec(i)[1], vec(i)[2]);
             Formatter << Buffer.data();
         }
         return Formatter.str();

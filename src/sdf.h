@@ -3,38 +3,17 @@
 #define SDF_SDF_H
 
 #include <type_traits>
+#include <unordered_set>
 
 #include "utils.h"
 #include "trojectory.h"
 #include "pbc.h"
+#include "config.h"
 
 namespace libmd
 {
     template<class FrameType>
-    TrojectorySnapshot findNearest(
-        const std::string& name, const float cutoff, const FrameType& frame)
-    {
-        static_assert(std::is_same<FrameType, Trojectory>::value ||
-                      std::is_same<FrameType, TrojectorySnapshot>::value,
-                      "FrameType can only be either Trojectory or "
-                      "TrojectorySnapshot");
-
-        const auto& BoxDim = frame.meta().BoxDim;
-        const RectPbc3d Pbc(BoxDim[0][0], BoxDim[1][1], BoxDim[2][2]);
-
-        const auto& Anchor = frame.vec(name);
-
-        auto Filter = [&](auto& _1, auto& _2, const V3Map& vec)
-        {
-            UNUSED(_1); UNUSED(_2);
-            return Pbc.dist(vec, Anchor) < cutoff;
-        };
-
-        return frame.filter(Filter);
-    }
-
-    template<class FrameType>
-    void wrapFrame(const std::string& anchor_name, FrameType& frame)
+    void wrapFrame(const AtomIdentifier& anchor_name, FrameType& frame)
     {
         static_assert(std::is_same<FrameType, Trojectory>::value ||
                       std::is_same<FrameType, TrojectorySnapshot>::value,
@@ -45,20 +24,20 @@ namespace libmd
         const auto& BoxDim = frame.meta().BoxDim;
         const RectPbc3d Pbc(BoxDim[0][0], BoxDim[1][1], BoxDim[2][2]);
 
-        for(size_t i = 0; i < frame.meta().AtomCount; i++)
+        for(int32_t i = 0; i < frame.meta().AtomCount; i++)
         {
             Pbc.wrapVec(Anchor, frame.vec(i));
         }
     }
 
-    template<class FrameType>
-    void shiftFrame(const VecRefType& by, FrameType& frame)
+    template<class VecType, class FrameType>
+    void shiftFrame(const VecType& by, FrameType& frame)
     {
         static_assert(std::is_same<FrameType, Trojectory>::value ||
                       std::is_same<FrameType, TrojectorySnapshot>::value,
                       "FrameType can only be either Trojectory or "
                       "TrojectorySnapshot");
-        for(size_t i = 0; i < frame.meta().AtomCount; i++)
+        for(int32_t i = 0; i < frame.meta().AtomCount; i++)
         {
             frame.vec(i) += by;
         }
@@ -71,25 +50,26 @@ namespace libmd
                       std::is_same<FrameType, TrojectorySnapshot>::value,
                       "FrameType can only be either Trojectory or "
                       "TrojectorySnapshot");
-        for(size_t i = 0; i < frame.meta().AtomCount; i++)
+        for(int32_t i = 0; i < frame.meta().AtomCount; i++)
         {
             frame.vec(i) = rot * frame.vec(i);
         }
     }
 
-    // Return a rotation matrix, which would rotate vec2x to +x, and
-    // in_xy to somewhere in the xy plaine; in_xy x vec2x would point
-    // to +z.
-    Eigen::Matrix3f rotateToAlignX(const VecRefType& vec2x,
-                                   const VecRefType& in_xy)
-    {
-    }
-
-}
+    // Return a rotation matrix, which would rotate vec to +x, and
+    // in_xy to somewhere in the xy plane; in_xy x vec would point to
+    // -z (which means the y component of in_xy > 0).
+    Eigen::Matrix3f rotateToAlignX(const VecRefType& vec,
+                                   const VecRefType& to_xy);
+} // namespace libmd
 
 namespace sdf
 {
+    libmd::TrojectorySnapshot prepareFrame(
+        const Parameters& params, const libmd::Trojectory& frame);
 
-} // namespace libmd
+    void run(const RuntimeConfig& config);
+
+} // namespace sdf
 
 #endif

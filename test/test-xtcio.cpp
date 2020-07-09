@@ -45,12 +45,13 @@ TEST_CASE("Trojectory")
     t.open("../test/test.xtc", "../test/test.gro");
 
     REQUIRE(t.nextFrame());
+
     CHECK(t.vec(0).isApprox(Eigen::Vector3f(4.249, 2.67, 4.389)));
-    CHECK(t.vec("BCDEF").isApprox(Eigen::Vector3f(4.145, 2.535, 4.553)));
-    CHECK(t.vec("H11").isApprox(Eigen::Vector3f(4.191, 2.707, 4.304)));
+    CHECK(t.vec("18+BCDEF").isApprox(Eigen::Vector3f(4.145, 2.535, 4.553)));
+    CHECK(t.vec("17+H11").isApprox(Eigen::Vector3f(4.191, 2.707, 4.304)));
 
     REQUIRE(t.nextFrame());
-    CHECK(t.vec("H11").isApprox(Eigen::Vector3f(4.209, 2.698, 4.304)));
+    CHECK(t.vec("17+H11").isApprox(Eigen::Vector3f(4.209, 2.698, 4.304)));
 
     REQUIRE(t.nextFrame());
     CHECK(t.vec(9).isApprox(Eigen::Vector3f(4.007, 2.533, 4.688)));
@@ -66,14 +67,15 @@ TEST_CASE("Trojectory filter")
     t.nextFrame();
     t.close();
 
-    auto Snap = t.filter(
-        [](const std::string& name, size_t _1,
+    auto Snap = libmd::filterFrame(
+        t,
+        [](const libmd::AtomIdentifier& name, size_t _1,
            const typename libmd::V3Map& _2)
         {
             UNUSED(_1); UNUSED(_2);
-            return name == "BCDEF";
+            return name.toStr() == "18+BCDEF";
         });
     CHECK(Snap.meta().AtomCount == 1);
     CHECK(Snap.data().size() == 3);
-    CHECK(Snap.vec("BCDEF").isApprox(Eigen::Vector3f(4.145, 2.535, 4.553)));
+    CHECK(Snap.vec("18+BCDEF").isApprox(Eigen::Vector3f(4.145, 2.535, 4.553)));
 }

@@ -96,7 +96,7 @@ TEST_CASE("PBC wrap random vec")
         // std::cout << "\nBefore wrap: \n" << a << "\n\n" << b << std::endl;
         Pbc.wrapVec(a, b);
         // std::cout << "\nAfter wrap: \n" << a << "\n\n" << b << std::endl;
-        CHECK((a-b).norm() == Approx(Dist).scale(0.0001));
+        CHECK((a-b).norm() == Approx(Dist).margin(0.0001));
         CHECK(Dist <= Pbc.DiagLength * 0.5);
     }
 }

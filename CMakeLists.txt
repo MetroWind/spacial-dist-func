@@ -20,8 +20,11 @@ set(TheFiles
   src/pbc.h
   src/pbc.cpp
   src/utils.h
+  src/utils.cpp
   src/sdf.h
-  src/sdf.cc
+  src/sdf.cpp
+  src/config.h
+  src/config.cpp
   )
 
 add_executable(not_test src/test.cpp ${TheFiles})
