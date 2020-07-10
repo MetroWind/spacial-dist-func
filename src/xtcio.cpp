@@ -1,5 +1,22 @@
+// Copyright 2020 MetroWind <chris.corsair@gmail.com>
+//
+// This program is free software: you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see
+// <https://www.gnu.org/licenses/>.
+
 #include <exception>
 #include <vector>
+#include <sstream>
 
 #include "xtcio.h"
 
@@ -399,10 +416,14 @@ namespace libmd
     XtcFile::FrameMeta XtcFile :: readFrameMetaAndStay()
     {
         int32_t magic;
+        auto Pos = File.tellg();
         read(&magic);
         if(magic != MAGIC)
         {
-            throw std::runtime_error("incorrect magic");
+            std::stringstream Formatter;
+            Formatter << "incorrect magic: " << std::hex
+                      << "0x" << magic << "@0x" << Pos;
+            throw std::runtime_error(Formatter.str());
         }
 
         XtcFile::FrameMeta Meta;

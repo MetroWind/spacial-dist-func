@@ -1,5 +1,21 @@
-#ifndef SDF_TROJECTORY_H
-#define SDF_TROJECTORY_H
+// Copyright 2020 MetroWind <chris.corsair@gmail.com>
+//
+// This program is free software: you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see
+// <https://www.gnu.org/licenses/>.
+
+#ifndef SDF_TRAJECTORY_H
+#define SDF_TRAJECTORY_H
 
 #include <iostream>
 #include <string>
@@ -64,18 +80,17 @@ namespace std
 
 namespace libmd
 {
-    // A snapshot of a frame of a trojectory. This is only
+    // A snapshot of a frame of a trajectory. This is only
     // constructable by using filterFrame(), or copying.
     //
-    // Has the same interface with Trojectory, minus the file-related
+    // Has the same interface with Trajectory, minus the file-related
     // part.
-    class TrojectorySnapshot
+    class TrajectorySnapshot
     {
     public:
-        TrojectorySnapshot() = delete;
-        TrojectorySnapshot(const TrojectorySnapshot& from) = default;
-        TrojectorySnapshot& operator=(const TrojectorySnapshot& from)
-        = default;
+        TrajectorySnapshot() = delete;
+        TrajectorySnapshot(const TrajectorySnapshot& from);
+        TrajectorySnapshot& operator=(TrajectorySnapshot from);
 
         V3Map& vec(const AtomIdentifier& atom_name)
         {
@@ -121,8 +136,22 @@ namespace libmd
 
         std::string debugString() const;
 
+        friend void swap(TrajectorySnapshot& a, TrajectorySnapshot& b) // nothrow
+        {
+            // enable ADL (not necessary in our case, but good practice)
+            using std::swap;
+
+            // by swapping the members of two objects,
+            // the two objects are effectively swapped
+            swap(a.AtomNames, b.AtomNames);
+            swap(a.AtomNamesReverse, b.AtomNamesReverse);
+            swap(a.Meta, b.Meta);
+            swap(a.Data, b.Data);
+            swap(a.Vecs, b.Vecs);
+        }
+
     private:
-        TrojectorySnapshot(size_t size)
+        TrajectorySnapshot(size_t size)
                 : AtomNames(size), Data(size*3) {}
 
         std::vector<AtomIdentifier> AtomNames;
@@ -132,7 +161,7 @@ namespace libmd
         std::vector<V3Map> Vecs;
 
         template <class FrameType, class FilterFunc> friend
-        TrojectorySnapshot filterFrame(const FrameType& frame, FilterFunc func);
+        TrajectorySnapshot filterFrame(const FrameType& frame, FilterFunc func);
     };
 
     // This wraps a XtcFile class and provides high level access
@@ -140,7 +169,7 @@ namespace libmd
     // of this and the snapshot type.
     //
     // This class does not care about boxes and boundary conditions.
-    class Trojectory
+    class Trajectory
     {
     public:
         void open(const std::string& xtc_path, const std::string& gro_path);
@@ -216,7 +245,7 @@ namespace libmd
         std::vector<V3Map> Vecs;
 
         template <class FrameType, class FilterFunc> friend
-        TrojectorySnapshot filterFrame(const FrameType& frame, FilterFunc func);
+        TrajectorySnapshot filterFrame(const FrameType& frame, FilterFunc func);
     };
 
     // Filter the atoms by “func”. The argument “func” is a callable
@@ -230,12 +259,12 @@ namespace libmd
     //
     // This does not change meta(), but it does change size().
     template <class FrameType, class FilterFunc>
-    TrojectorySnapshot filterFrame(const FrameType& frame, FilterFunc func)
+    TrajectorySnapshot filterFrame(const FrameType& frame, FilterFunc func)
     {
-        static_assert(std::is_same<FrameType, Trojectory>::value ||
-                      std::is_same<FrameType, TrojectorySnapshot>::value,
-                      "FrameType can only be either Trojectory or "
-                      "TrojectorySnapshot");
+        static_assert(std::is_same<FrameType, Trajectory>::value ||
+                      std::is_same<FrameType, TrajectorySnapshot>::value,
+                      "FrameType can only be either Trajectory or "
+                      "TrajectorySnapshot");
 
         std::vector<size_t> Passed;
         for(size_t i = 0; i < frame.Vecs.size(); i++)
@@ -246,7 +275,7 @@ namespace libmd
             }
         }
 
-        TrojectorySnapshot Snap(Passed.size());
+        TrajectorySnapshot Snap(Passed.size());
         Snap.Meta = frame.Meta;
         Snap.Meta.AtomCount = Passed.size();
 

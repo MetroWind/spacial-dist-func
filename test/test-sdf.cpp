@@ -1,3 +1,19 @@
+// Copyright 2020 MetroWind <chris.corsair@gmail.com>
+//
+// This program is free software: you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see
+// <https://www.gnu.org/licenses/>.
+
 #include <sstream>
 
 #include <catch2/catch.hpp>
@@ -11,7 +27,7 @@ using v3 = Eigen::Vector3f;
 
 // TEST_CASE("Nearest filter")
 // {
-//     libmd::Trojectory t;
+//     libmd::Trajectory t;
 //     t.open("../test/test.xtc", "../test/test.gro");
 //     t.nextFrame();
 //     t.close();
@@ -118,4 +134,26 @@ TEST_CASE("Config reading 2 runs")
           std::end(Config.Params[1].OtherAtoms));
     CHECK(Config.Params[1].OtherAtoms.find("17+H13") !=
           std::end(Config.Params[1].OtherAtoms));
+}
+
+TEST_CASE("Distribution grid")
+{
+    sdf::Distribution2 Dist;
+    Dist.cornerLow(-1, -1);
+    Dist.cornerHigh(1, 1);
+    Dist.resolution(2);
+    Dist.buildGrid();
+    CHECK(Dist.count(0, 0) == 0);
+    CHECK(Dist.count(1, 0) == 0);
+    CHECK(Dist.count(0, 1) == 0);
+    CHECK(Dist.count(1, 1) == 0);
+    std::cerr << Dist.prettyPrint() << std::endl;
+    CHECK_THROWS(Dist.count(1, 2) == 0);
+    CHECK_THROWS(Dist.count(2, 1) == 0);
+
+    Dist.add(-0.5, 0.5);
+    CHECK(Dist.count(0, 0) == 0);
+    CHECK(Dist.count(1, 0) == 0);
+    CHECK(Dist.count(0, 1) == 1);
+    CHECK(Dist.count(1, 1) == 0);
 }

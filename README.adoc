@@ -10,3 +10,8 @@
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release && make
 ----
+
+== Usage
+
+See the `--help` message. I also include a `plot.py` file, as an
+example of how you could visualize the distribution result.

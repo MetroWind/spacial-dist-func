@@ -1,3 +1,19 @@
+// Copyright 2020 MetroWind <chris.corsair@gmail.com>
+//
+// This program is free software: you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see
+// <https://www.gnu.org/licenses/>.
+
 #include <fstream>
 #include <array>
 #include <sstream>
@@ -5,7 +21,7 @@
 #include <cstring>
 #include <cstdlib>
 
-#include "trojectory.h"
+#include "trajectory.h"
 
 namespace libmd
 {
@@ -66,7 +82,26 @@ namespace libmd
         Name = std::string(s + SepPos + 1, i - SepPos - 1);
     }
 
-    std::string TrojectorySnapshot :: debugString() const
+    TrajectorySnapshot :: TrajectorySnapshot(const TrajectorySnapshot& from)
+            : AtomNames(from.AtomNames),
+              AtomNamesReverse(from.AtomNamesReverse),
+              Meta(from.Meta),
+              Data(from.Data)
+    {
+        Vecs.clear();
+        for(size_t i = 0; i < AtomNames.size(); i++)
+        {
+            Vecs.emplace_back(&(Data[i*3]));
+        }
+    }
+
+    TrajectorySnapshot& TrajectorySnapshot :: operator=(TrajectorySnapshot from)
+    {
+        swap(*this, from);
+        return *this;
+    }
+
+    std::string TrajectorySnapshot :: debugString() const
     {
         std::stringstream Formatter;
         for(size_t i = 0; i < static_cast<size_t>(meta().AtomCount); i++)
@@ -80,7 +115,7 @@ namespace libmd
         return Formatter.str();
     }
 
-    void Trojectory :: open(const std::string& xtc_path,
+    void Trajectory :: open(const std::string& xtc_path,
                             const std::string& gro_path)
     {
         f.open(xtc_path.c_str());
@@ -108,7 +143,7 @@ namespace libmd
         }
     }
 
-    bool Trojectory :: nextFrame()
+    bool Trajectory :: nextFrame()
     {
         if(f.eof())
         {
@@ -119,12 +154,12 @@ namespace libmd
         return true;
     }
 
-    void Trojectory :: close()
+    void Trajectory :: close()
     {
         if(f.isOpen()) { f.close(); }
     }
 
-    std::string Trojectory :: debugString() const
+    std::string Trajectory :: debugString() const
     {
         std::stringstream Formatter;
         for(size_t i = 0; i < static_cast<size_t>(meta().AtomCount); i++)
