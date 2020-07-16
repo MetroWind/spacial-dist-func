@@ -45,11 +45,11 @@ namespace libmd
             Rot1(0, 1) = -Axis[2] * Sin;
             Rot1(0, 2) = Axis[1] * Sin;
             Rot1(1, 0) = Axis[2] * Sin;
-            Rot1(1, 1) = Cos + Axis[1] * Axis[1] * (1.0 - Cos);
-            Rot1(1, 2) = Axis[1] * Axis[2] * (1.0 - Cos);
+            Rot1(1, 1) = Cos + Axis[1] * Axis[1] * (1.0f - Cos);
+            Rot1(1, 2) = Axis[1] * Axis[2] * (1.0f - Cos);
             Rot1(2, 0) = -Axis[1] * Sin;
-            Rot1(2, 1) = Axis[2] * Axis[1] * (1.0 - Cos);
-            Rot1(2, 2) = Cos + Axis[2] * Axis[2] * (1 - Cos);
+            Rot1(2, 1) = Axis[2] * Axis[1] * (1.0f - Cos);
+            Rot1(2, 2) = Cos + Axis[2] * Axis[2] * (1.0f - Cos);
         }
 
         const Eigen::Vector3f Rotated = Rot1 * to_xy;
@@ -63,7 +63,7 @@ namespace libmd
                 Sin = -Sin;
             }
 
-            Rot2(0, 0) = 1.0;
+            Rot2(0, 0) = 1.0f;
             Rot2(1, 1) = Cos;
             Rot2(1, 2) = -Sin;
             Rot2(2, 1) = Sin;
@@ -268,6 +268,9 @@ namespace sdf
         }
         Formatter << "],\n";
 
+        // Output the mesh for the grid. The structure of the mesh is
+        // documented at
+        // https://matplotlib.org/api/_as_gen/matplotlib.axes.Axes.pcolormesh.html#matplotlib.axes.Axes.pcolormesh
         Formatter << "\"x\": [";
         float XSize = CornerHigh[0] - CornerLow[0];
         float CellSizeX = XSize / float(Resolution);

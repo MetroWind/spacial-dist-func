@@ -4,7 +4,7 @@ project(sdf LANGUAGES CXX VERSION 1.1.0)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic -Werror")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic-errors -Werror")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
@@ -15,8 +15,6 @@ if(COMPILER_SUPPORTS_MARCH_NATIVE)
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
   message("Compiler option march=native enabled.")
 endif()
-
-project(sdf)
 
 find_package(Threads REQUIRED)
 find_package(Eigen3 3.3 QUIET NO_MODULE)
