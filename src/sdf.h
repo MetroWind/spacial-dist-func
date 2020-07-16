@@ -92,7 +92,7 @@ namespace sdf
         uint32_t count(size_t ix, size_t iy) const;
 
         std::string prettyPrint() const;
-        std::string jsonMesh() const;
+        std::string jsonMesh(bool avg_over_frames) const;
 
         void addSpecial(const std::string& name, std::array<float, 2> coord);
 

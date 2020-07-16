@@ -76,6 +76,8 @@ void help(const std::string& prog_name)
 "                               box is divided into resolution^2\n"
 "                               number of grid cells. Default: 0.1\n\n"
 "-p, --progress                 Show a “progress bar”.\n\n"
+"-a, --average                  Average the result over number of\n"
+"                               frames.\n\n"
         ;
 }
 
@@ -92,6 +94,7 @@ int main(int argc, char** argv)
     size_t Resolution = 40;
     float HistRange = 0.1;
     bool Progress = false;
+    bool Average = false;
 
     {
         static struct option Options[] = {
@@ -101,12 +104,13 @@ int main(int argc, char** argv)
             { "slice-thickness", required_argument, nullptr, 's' },
             { "resolution", required_argument, nullptr, 'r' },
             { "hist-range", required_argument, nullptr, 'H' },
-            { "progress", required_argument, nullptr, 'p' },
+            { "progress", no_argument, nullptr, 'p' },
+            { "average", no_argument, nullptr, 'a' },
             { nullptr, 0, nullptr, 0 }
         };
 
         int ch;
-        while ((ch = getopt_long(argc, argv, "ht:d:s:r:p", Options, nullptr)) != -1)
+        while ((ch = getopt_long(argc, argv, "ht:d:s:r:pa", Options, nullptr)) != -1)
         {
             switch (ch)
             {
@@ -130,6 +134,9 @@ int main(int argc, char** argv)
                 break;
             case 'p':
                 Progress = true;
+                break;
+            case 'a':
+                Average = true;
                 break;
             default:
                 usage(ProgName);
@@ -178,6 +185,7 @@ int main(int argc, char** argv)
         Config.HistRange = HistRange;
     }
     Config.Progress = Progress;
+    Config.AverageOverFrameCount = Average;
 
     sdf::run(Config);
 

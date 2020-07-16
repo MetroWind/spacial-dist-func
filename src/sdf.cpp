@@ -160,7 +160,7 @@ namespace sdf
 
         if(config.Progress) { std::cerr << std::endl; }
         t.close();
-        std::cout << Result.jsonMesh();
+        std::cout << Result.jsonMesh(config.AverageOverFrameCount);
         Result.FrameCount = t.countFrames();
         return Result;
 
@@ -243,7 +243,7 @@ namespace sdf
         return Formatter.str();
     }
 
-    std::string Distribution2 :: jsonMesh() const
+    std::string Distribution2 :: jsonMesh(bool avg_over_frames) const
     {
         std::stringstream Formatter;
         Formatter << "{\n";
@@ -253,7 +253,15 @@ namespace sdf
             Formatter << "[";
             for(size_t x = 0; x < Resolution; x++)
             {
-                Formatter << float(count(x, y)) / float(FrameCount);
+                if(avg_over_frames)
+                {
+                    Formatter << float(count(x, y)) / float(FrameCount);
+                }
+                else
+                {
+                    Formatter << count(x, y);
+                }
+
                 if(x < Resolution - 1)
                 {
                     Formatter << ", ";

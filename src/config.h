@@ -48,6 +48,7 @@ namespace sdf
         float HistRange = 0.1;
         bool Progress = false;
         size_t ThreadCount = 0;
+        bool AverageOverFrameCount = false;
     };
 
 }
