@@ -96,6 +96,8 @@ namespace sdf
 
         void addSpecial(const std::string& name, std::array<float, 2> coord);
 
+        size_t FrameCount;
+
     private:
         size_t index(size_t ix, size_t iy) const;
         size_t index(float x, float y) const;

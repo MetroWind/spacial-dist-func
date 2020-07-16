@@ -175,6 +175,8 @@ namespace libmd
         void open(const std::string& xtc_path, const std::string& gro_path);
         // Return false if EOF is reached.
         bool nextFrame();
+        // The number of times nextFrame() is called.
+        size_t countFrames() { return FrameCount; }
 
         V3Map& vec(const AtomIdentifier& atom_name)
         {
@@ -250,6 +252,7 @@ namespace libmd
         // an array of 3N floats, because of alignment.
         std::vector<float> Data;
         std::vector<V3Map> Vecs;
+        size_t FrameCount;
 
         template <class FrameType, class FilterFunc> friend
         TrajectorySnapshot filterFrame(const FrameType& frame, FilterFunc func);

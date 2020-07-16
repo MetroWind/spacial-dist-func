@@ -141,6 +141,7 @@ namespace libmd
         {
             Vecs.emplace_back(&(Data[i*3]));
         }
+        FrameCount = 0;
     }
 
     bool Trajectory :: nextFrame()
@@ -151,6 +152,7 @@ namespace libmd
         }
 
         f.readFrame(Data.data());
+        FrameCount++;
         return true;
     }
 
@@ -165,6 +167,7 @@ namespace libmd
         AtomNamesReverse.clear();
         Data.clear();
         Vecs.clear();
+        FrameCount = 0;
     }
 
     std::string Trajectory :: debugString() const

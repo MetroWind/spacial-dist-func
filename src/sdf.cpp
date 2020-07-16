@@ -126,7 +126,6 @@ namespace sdf
                         FrameLock.unlock();
                         break;
                     }
-
                     const auto Frame = t.snapshot();
                     FrameLock.unlock();
 
@@ -162,6 +161,7 @@ namespace sdf
         if(config.Progress) { std::cerr << std::endl; }
         t.close();
         std::cout << Result.jsonMesh();
+        Result.FrameCount = t.countFrames();
         return Result;
 
     }
@@ -253,7 +253,7 @@ namespace sdf
             Formatter << "[";
             for(size_t x = 0; x < Resolution; x++)
             {
-                Formatter << count(x, y);
+                Formatter << float(count(x, y)) / float(FrameCount);
                 if(x < Resolution - 1)
                 {
                     Formatter << ", ";
