@@ -18,6 +18,7 @@
 #include <thread>
 #include <mutex>
 #include <iomanip>
+#include <stdexcept>
 
 #include "sdf.h"
 #include "utils.h"
@@ -76,78 +77,6 @@ namespace libmd
 namespace sdf
 {
     using namespace libmd;
-    PreparedFrame prepareFrame(
-        const Parameters& params, const Trajectory& frame)
-    {
-        const auto& AtomX = frame.vec(params.AtomX);
-        const auto& BoxDim = frame.meta().BoxDim;
-        const RectPbc3d Pbc(BoxDim[0][0], BoxDim[1][1], BoxDim[2][2]);
-
-        // Filter by distance
-        auto Frame = filterFrame(
-            frame,
-            [&](const libmd::AtomIdentifier& name, size_t _, const auto& vec)
-            {
-                UNUSED(_);
-                if(name == params.Anchor || name == params.AtomX ||
-                   name == params.AtomXY)
-                {
-                    return true;
-                }
-
-                if(name.Res == params.Anchor.Res)
-                {
-                    return false;
-                }
-
-                // if(params.OtherAtoms.find(name) == std::end(params.OtherAtoms))
-                // {
-                //     return false;
-                // }
-
-                return Pbc.dist(AtomX, vec) < params.Distance;
-            });
-
-        // std::cout << Frame.debugString() << std::endl;
-
-        wrapFrame(params.AtomX, Frame);
-        Eigen::Vector3f ShiftBy = -(Frame.vec(params.Anchor));
-        shiftFrame(ShiftBy, Frame);
-        auto Rot = rotateToAlignX(Frame.vec(params.AtomX),
-                                  Frame.vec(params.AtomXY));
-        rotateFrame(Rot, Frame);
-        // std::cerr << Frame.debugString() << std::endl;
-
-        // Ditch the anchors, x atoms, and xy atoms, and take a slice
-        // at the XY plane.
-        float HalfThickness = params.SliceThickness * 0.5;
-        auto Snap = filterFrame(
-            Frame,
-            [&](const libmd::AtomIdentifier& id, auto _1, const auto& pos)
-            {
-                UNUSED(_1);
-                return !(id.Name == params.Anchor.Name ||
-                         id.Name == params.AtomX.Name ||
-                         id.Name == params.AtomXY.Name) &&
-                    std::fabs(pos[2]) <= HalfThickness;
-            });
-        PreparedFrame Result(std::move(Snap));
-        Result.addExtra(params.Anchor, Frame.vec(params.Anchor));
-        Result.addExtra(params.AtomX, Frame.vec(params.AtomX));
-        Result.addExtra(params.AtomXY, Frame.vec(params.AtomXY));
-        // for(size_t ih = 1; ih <= 14; ih++)
-        // {
-        //     std::stringstream Formatter;
-        //     Formatter << "1+H" << ih;
-        //     const auto Name = Formatter.str();
-        //     if(Frame.hasAtom(Name))
-        //     {
-        //         Result.addExtra(Name, Frame.vec(Name));
-        //     }
-        // }
-
-        return Result;
-    }
 
     Distribution2 run(const RuntimeConfig& config)
     {
@@ -161,71 +90,77 @@ namespace sdf
                           t.meta().BoxDim[1][1] * config.HistRange);
         Result.resolution(config.Resolution);
         Result.buildGrid();
-        bool IsFirstFrame = true;
-        std::mutex HistLock;
 
-        while(t.nextFrame())
+        t.nextFrame();
         {
-            if(IsFirstFrame)
+            auto FirstFrame = prepareFrame(config.Params[0], t);
+            auto AnchorName = config.Params[0].Anchor.toStr();
+            auto Anchor = FirstFrame.extraAtoms().at(config.Params[0].Anchor);
+            auto AtomXName = config.Params[0].AtomX.toStr();
+            auto AtomX = FirstFrame.extraAtoms().at(config.Params[0].AtomX);
+            auto AtomXYName = config.Params[0].AtomXY.toStr();
+            auto AtomXY = FirstFrame.extraAtoms().at(config.Params[0].AtomXY);
+
+            Result.addSpecial(AnchorName, {Anchor[0], Anchor[1]});
+            Result.addSpecial(AtomXName, {AtomX[0], AtomX[1]});
+            Result.addSpecial(AtomXYName, {AtomXY[0], AtomXY[1]});
+        }
+
+        t.close();
+        t.clear();
+        t.open(config.XtcFile, config.GroFile);
+
+        std::mutex HistLock;
+        std::mutex FrameLock;
+        std::vector<std::thread> Threads;
+
+        for(size_t i = 0; i < config.ThreadCount; i++)
+        {
+            Threads.emplace_back(std::thread([&]()
             {
-                auto FirstFrame = prepareFrame(config.Params[0], t);
-                auto AnchorName = config.Params[0].Anchor.toStr();
-                auto Anchor = FirstFrame.extraAtoms().at(config.Params[0].Anchor);
-                auto AtomXName = config.Params[0].AtomX.toStr();
-                auto AtomX = FirstFrame.extraAtoms().at(config.Params[0].AtomX);
-                auto AtomXYName = config.Params[0].AtomXY.toStr();
-                auto AtomXY = FirstFrame.extraAtoms().at(config.Params[0].AtomXY);
-
-                Result.addSpecial(AnchorName, {Anchor[0], Anchor[1]});
-                Result.addSpecial(AtomXName, {AtomX[0], AtomX[1]});
-                Result.addSpecial(AtomXYName, {AtomXY[0], AtomXY[1]});
-            }
-
-            std::atomic<int> ParamIdx(-1);
-            std::vector<std::thread> Threads;
-            const int ParamsCount = static_cast<int>(config.Params.size());
-
-            for(size_t i = 0; i < config.ThreadCount; i++)
-            {
-                Threads.emplace_back(std::thread([&]()
+                while(true)
                 {
-                    while(true)
+                    FrameLock.lock();
+                    if(!t.nextFrame())
                     {
-                        const int LocalParamIdx = ++ParamIdx;
-                        // Cannot put the check in while, because
-                        // ParamIdx could change between that and the
-                        // ++ParamIdx.
-                        if(LocalParamIdx >= ParamsCount)
-                        {
-                            break;
-                        }
+                        FrameLock.unlock();
+                        break;
+                    }
 
-                        auto Frame = prepareFrame(config.Params[LocalParamIdx], t);
+                    const auto Frame = t.snapshot();
+                    FrameLock.unlock();
+
+                    for(const auto& Params: config.Params)
+                    {
+                        auto Frame = prepareFrame(Params, t);
                         HistLock.lock();
                         for(const auto& Vec: Frame.snapshot().vecs())
                         {
-                            Result.add(Vec[0], Vec[1]);
+                            try
+                            {
+                                Result.add(Vec[0], Vec[1]);
+                            }
+                            catch(std::out_of_range)
+                            {
+                            }
                         }
                         HistLock.unlock();
                     }
-                }));
-            }
+                    if(config.Progress)
+                    {
+                        std::cerr << "." << std::flush;
+                    }
+                }
+            }));
+        }
 
-            for(auto& Thread: Threads)
-            {
-                Thread.join();
-            }
-            IsFirstFrame = false;
-            if(config.Progress)
-            {
-                std::cerr << "." << std::flush;
-            }
-        }
-        t.close();
-        if(config.Progress)
+        for(auto& Thread: Threads)
         {
-            std::cerr << std::endl;
+            Thread.join();
         }
+
+        if(config.Progress) { std::cerr << std::endl; }
+        t.close();
         std::cout << Result.jsonMesh();
         return Result;
 
@@ -266,11 +201,21 @@ namespace sdf
 
     size_t Distribution2 :: index(size_t ix, size_t iy) const
     {
+        if(ix >= Resolution || iy >= Resolution)
+        {
+            throw std::out_of_range("Grid index out of range");
+        }
         return ix * Resolution + iy;
     }
 
     size_t Distribution2 :: index(float x, float y) const
     {
+        if(x < CornerLow[0] || x >= CornerHigh[0] || y < CornerLow[1] ||
+           y >= CornerHigh[1])
+        {
+            throw std::out_of_range("Grid coordinate out of range");
+        }
+
         size_t ix = (x - CornerLow[0]) / (CornerHigh[0] - CornerLow[0]) *
             float(Resolution);
         size_t iy = (y - CornerLow[1]) / (CornerHigh[1] - CornerLow[1]) *

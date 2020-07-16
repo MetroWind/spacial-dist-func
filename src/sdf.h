@@ -135,8 +135,84 @@ namespace sdf
     const libmd::TrajectorySnapshot Frame;
     };
 
+    template <class FrameType>
     PreparedFrame prepareFrame(
-        const Parameters& params, const libmd::Trajectory& frame);
+        const Parameters& params, const FrameType& frame)
+    {
+        static_assert(std::is_same<FrameType, libmd::Trajectory>::value ||
+                      std::is_same<FrameType, libmd::TrajectorySnapshot>::value,
+                      "FrameType can only be either Trajectory or "
+                      "TrajectorySnapshot");
+
+        const auto& AtomX = frame.vec(params.AtomX);
+        const auto& BoxDim = frame.meta().BoxDim;
+        const libmd::RectPbc3d Pbc(BoxDim[0][0], BoxDim[1][1], BoxDim[2][2]);
+
+        // Filter by distance
+        auto Frame = filterFrame(
+            frame,
+            [&](const libmd::AtomIdentifier& name, size_t _, const auto& vec)
+            {
+                UNUSED(_);
+                if(name == params.Anchor || name == params.AtomX ||
+                   name == params.AtomXY)
+                {
+                    return true;
+                }
+
+                if(name.Res == params.Anchor.Res)
+                {
+                    return false;
+                }
+
+                // if(params.OtherAtoms.find(name) == std::end(params.OtherAtoms))
+                // {
+                //     return false;
+                // }
+
+                return Pbc.dist(AtomX, vec) < params.Distance;
+            });
+
+        // std::cout << Frame.debugString() << std::endl;
+
+        wrapFrame(params.AtomX, Frame);
+        Eigen::Vector3f ShiftBy = -(Frame.vec(params.Anchor));
+        shiftFrame(ShiftBy, Frame);
+        auto Rot = libmd::rotateToAlignX(Frame.vec(params.AtomX),
+                                  Frame.vec(params.AtomXY));
+        rotateFrame(Rot, Frame);
+        // std::cerr << Frame.debugString() << std::endl;
+
+        // Ditch the anchors, x atoms, and xy atoms, and take a slice
+        // at the XY plane.
+        float HalfThickness = params.SliceThickness * 0.5;
+        auto Snap = filterFrame(
+            Frame,
+            [&](const libmd::AtomIdentifier& id, auto _1, const auto& pos)
+            {
+                UNUSED(_1);
+                return !(id.Name == params.Anchor.Name ||
+                         id.Name == params.AtomX.Name ||
+                         id.Name == params.AtomXY.Name) &&
+                    std::fabs(pos[2]) <= HalfThickness;
+            });
+        PreparedFrame Result(std::move(Snap));
+        Result.addExtra(params.Anchor, Frame.vec(params.Anchor));
+        Result.addExtra(params.AtomX, Frame.vec(params.AtomX));
+        Result.addExtra(params.AtomXY, Frame.vec(params.AtomXY));
+        // for(size_t ih = 1; ih <= 14; ih++)
+        // {
+        //     std::stringstream Formatter;
+        //     Formatter << "1+H" << ih;
+        //     const auto Name = Formatter.str();
+        //     if(Frame.hasAtom(Name))
+        //     {
+        //         Result.addExtra(Name, Frame.vec(Name));
+        //     }
+        // }
+
+        return Result;
+    }
 
     Distribution2 run(const RuntimeConfig& config);
 

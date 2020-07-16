@@ -159,6 +159,14 @@ namespace libmd
         if(f.isOpen()) { f.close(); }
     }
 
+    void Trajectory :: clear()
+    {
+        AtomNames.clear();
+        AtomNamesReverse.clear();
+        Data.clear();
+        Vecs.clear();
+    }
+
     std::string Trajectory :: debugString() const
     {
         std::stringstream Formatter;

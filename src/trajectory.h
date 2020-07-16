@@ -230,7 +230,14 @@ namespace libmd
         }
 
         void close();
+        void clear();
         std::string debugString() const;
+
+        TrajectorySnapshot snapshot() const
+        {
+            return filterFrame(*this, [](auto& _1, auto& _2, auto& _3)
+                               { UNUSED(_1);UNUSED(_2);UNUSED(_3); return true;});
+        }
 
     private:
         std::vector<AtomIdentifier> AtomNames;
@@ -274,11 +281,9 @@ namespace libmd
                 Passed.push_back(i);
             }
         }
-
         TrajectorySnapshot Snap(Passed.size());
         Snap.Meta = frame.Meta;
         Snap.Meta.AtomCount = Passed.size();
-
         for(size_t i = 0; i < Passed.size(); i++)
         {
             Snap.AtomNames[i] = frame.AtomNames[Passed[i]];
@@ -291,7 +296,6 @@ namespace libmd
             Snap.Data[i*3+1] = frame.Data[NewIdx*3+1];
             Snap.Data[i*3+2] = frame.Data[NewIdx*3+2];
         }
-
         // Rebuild AtomNamesReverse and Vecs.
         Snap.AtomNamesReverse.clear();
         for(size_t i = 0; i < Snap.AtomNames.size(); i++)
@@ -304,6 +308,7 @@ namespace libmd
         {
             Snap.Vecs.emplace_back(&(Snap.Data[i*3]));
         }
+
         return Snap;
     }
 
