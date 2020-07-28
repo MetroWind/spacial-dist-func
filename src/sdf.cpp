@@ -84,10 +84,20 @@ namespace sdf
         t.open(config.XtcFile, config.GroFile);
 
         Distribution2 Result;
-        Result.cornerLow(-(t.meta().BoxDim[0][0]) * config.HistRange,
-                         -(t.meta().BoxDim[1][1]) * config.HistRange);
-        Result.cornerHigh(t.meta().BoxDim[0][0] * config.HistRange,
-                          t.meta().BoxDim[1][1] * config.HistRange);
+        if(config.AbsoluteHistRange)
+        {
+            Result.cornerLow(-0.5 * config.HistRange,
+                             -0.5 * config.HistRange);
+            Result.cornerHigh(0.5 * config.HistRange,
+                              0.5 * config.HistRange);
+        }
+        else
+        {
+            Result.cornerLow(-(t.meta().BoxDim[0][0]) * config.HistRange,
+                             -(t.meta().BoxDim[1][1]) * config.HistRange);
+            Result.cornerHigh(t.meta().BoxDim[0][0] * config.HistRange,
+                              t.meta().BoxDim[1][1] * config.HistRange);
+        }
         Result.resolution(config.Resolution);
         Result.buildGrid();
 

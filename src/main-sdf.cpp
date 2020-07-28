@@ -75,6 +75,10 @@ void help(const std::string& prog_name)
 "                               histogram box is then 0.3x0.4. This\n"
 "                               box is divided into resolution^2\n"
 "                               number of grid cells. Default: 0.1\n\n"
+"--hist-range-abs X             The absolute size of the 2D historgram\n"
+"                               cube. This is mutually exclusive with\n"
+"                               --hist-range. Default: use --hist-range\n"
+"                               0.1\n\n"
 "-p, --progress                 Show a “progress bar”.\n\n"
 "-a, --average                  Average the result over number of\n"
 "                               frames.\n\n"
@@ -93,6 +97,7 @@ int main(int argc, char** argv)
     float Thickness = 0.0;
     size_t Resolution = 40;
     float HistRange = 0.1;
+    bool AbsoluteHistRange = false;
     bool Progress = false;
     bool Average = false;
 
@@ -103,7 +108,8 @@ int main(int argc, char** argv)
             { "distance-cutoff", required_argument, nullptr, 'd' },
             { "slice-thickness", required_argument, nullptr, 's' },
             { "resolution", required_argument, nullptr, 'r' },
-            { "hist-range", required_argument, nullptr, 'H' },
+            { "hist-range", required_argument, nullptr, 'n' },
+            { "hist-range-abs", required_argument, nullptr, 'N' },
             { "progress", no_argument, nullptr, 'p' },
             { "average", no_argument, nullptr, 'a' },
             { nullptr, 0, nullptr, 0 }
@@ -129,8 +135,13 @@ int main(int argc, char** argv)
             case 'r':
                 Resolution = std::atoi(optarg);
                 break;
-            case 'H':
+            case 'n':
                 HistRange = std::atof(optarg);
+                AbsoluteHistRange = false;
+                break;
+            case 'N':
+                HistRange = std::atof(optarg);
+                AbsoluteHistRange = true;
                 break;
             case 'p':
                 Progress = true;
@@ -183,6 +194,7 @@ int main(int argc, char** argv)
     if(HistRange > 0.0)
     {
         Config.HistRange = HistRange;
+        Config.AbsoluteHistRange = AbsoluteHistRange;
     }
     Config.Progress = Progress;
     Config.AverageOverFrameCount = Average;

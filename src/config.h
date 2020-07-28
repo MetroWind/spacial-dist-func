@@ -46,6 +46,7 @@ namespace sdf
         std::vector<Parameters> Params;
         size_t Resolution = 40;
         float HistRange = 0.1;
+        bool AbsoluteHistRange = false;
         bool Progress = false;
         size_t ThreadCount = 0;
         bool AverageOverFrameCount = false;
