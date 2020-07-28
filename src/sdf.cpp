@@ -106,6 +106,26 @@ namespace sdf
             Result.addSpecial(AtomXYName, {AtomXY[0], AtomXY[1]});
         }
 
+        // Make sure the atoms specified in the input exist.
+        for(const auto& param: config.Params)
+        {
+            if(!t.hasAtom(param.AtomX))
+            {
+                throw std::runtime_error(std::string("Unknown atom: ") +
+                                         param.AtomX.toStr());
+            }
+            if(!t.hasAtom(param.AtomXY))
+            {
+                throw std::runtime_error(std::string("Unknown atom: ") +
+                                         param.AtomXY.toStr());
+            }
+            if(!t.hasAtom(param.Anchor))
+            {
+                throw std::runtime_error(std::string("Unknown atom: ") +
+                                         param.Anchor.toStr());
+            }
+        }
+
         t.close();
         t.clear();
         t.open(config.XtcFile, config.GroFile);
