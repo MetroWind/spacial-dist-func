@@ -26,6 +26,24 @@
 
 namespace sdf
 {
+    class HCenter
+    {
+    public:
+        using Type = enum {ANCHOR, X, XY};
+
+        HCenter() = default;
+        HCenter(const HCenter&) = default;
+        HCenter(const std::string& which);
+        HCenter(Type which) : Center(which) {}
+
+        HCenter& operator=(const HCenter&) = default;
+
+        Type type() const { return Center; }
+
+    private:
+        Type Center = X;
+    };
+
     struct Parameters
     {
         libmd::AtomIdentifier Anchor;
@@ -34,6 +52,7 @@ namespace sdf
         float Distance;
         float SliceThickness;
         std::unordered_set<libmd::AtomIdentifier> OtherAtoms;
+        HCenter Center;
     };
 
     struct RuntimeConfig

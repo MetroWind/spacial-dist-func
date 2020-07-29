@@ -23,6 +23,26 @@ namespace sdf
 {
     using namespace libmd;
 
+    HCenter :: HCenter(const std::string& which)
+    {
+        if(which == "anchor")
+        {
+            Center = ANCHOR;
+        }
+        else if(which == "x")
+        {
+            Center = X;
+        }
+        else if(which == "xy")
+        {
+            Center = XY;
+        }
+        else
+        {
+            throw std::invalid_argument(std::string("Unknown H center type: ") + which);
+        }
+    }
+
     RuntimeConfig RuntimeConfig :: read(std::istream& s)
     {
         RuntimeConfig Config;

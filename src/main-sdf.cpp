@@ -64,7 +64,7 @@ void help(const std::string& prog_name)
 "-s X, --slice-thickness X      The thickness of slice of projection,\n"
 "                               in XTC native unit. Override the value\n"
 "                               specified in the input file.\n\n"
-"-r N, --resolution X           The resolution of the histogram grid.\n"
+"-r N, --resolution N           The resolution of the histogram grid.\n"
 "                               This is the number of grid cells in\n"
 "                               each direction. Default: 40\n\n"
 "--hist-range X                 The size of the 2D historgram region,\n"
@@ -82,6 +82,9 @@ void help(const std::string& prog_name)
 "-p, --progress                 Show a “progress bar”.\n\n"
 "-a, --average                  Average the result over number of\n"
 "                               frames.\n\n"
+"--center TYPE                  The type of center atom to calculate\n"
+"                               distance from. Valid types are\n"
+"                               'anchor', 'x', and 'xy'. Default: x.\n\n"
         ;
 }
 
@@ -100,6 +103,7 @@ int main(int argc, char** argv)
     bool AbsoluteHistRange = false;
     bool Progress = false;
     bool Average = false;
+    sdf::HCenter CenterType("x");
 
     {
         static struct option Options[] = {
@@ -112,6 +116,7 @@ int main(int argc, char** argv)
             { "hist-range-abs", required_argument, nullptr, 'N' },
             { "progress", no_argument, nullptr, 'p' },
             { "average", no_argument, nullptr, 'a' },
+            { "center", required_argument, nullptr, 'c' },
             { nullptr, 0, nullptr, 0 }
         };
 
@@ -148,6 +153,9 @@ int main(int argc, char** argv)
                 break;
             case 'a':
                 Average = true;
+                break;
+            case 'c':
+                CenterType = std::string(optarg);
                 break;
             default:
                 usage(ProgName);
@@ -190,6 +198,12 @@ int main(int argc, char** argv)
             Params.SliceThickness = Thickness;
         }
     }
+
+    for(auto& Params: Config.Params)
+    {
+        Params.Center = CenterType;
+    }
+
     Config.Resolution = Resolution;
     if(HistRange > 0.0)
     {

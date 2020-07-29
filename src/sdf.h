@@ -147,6 +147,9 @@ namespace sdf
                       "TrajectorySnapshot");
 
         const auto& AtomX = frame.vec(params.AtomX);
+        const auto& AtomXY = frame.vec(params.AtomXY);
+        const auto& Anchor = frame.vec(params.Anchor);
+
         const auto& BoxDim = frame.meta().BoxDim;
         const libmd::RectPbc3d Pbc(BoxDim[0][0], BoxDim[1][1], BoxDim[2][2]);
 
@@ -172,7 +175,18 @@ namespace sdf
                 //     return false;
                 // }
 
-                return Pbc.dist(AtomX, vec) < params.Distance;
+                switch(params.Center.type())
+                {
+                case HCenter::X:
+                    return Pbc.dist(AtomX, vec) < params.Distance;
+                case HCenter::XY:
+                    return Pbc.dist(AtomXY, vec) < params.Distance;
+                case HCenter::ANCHOR:
+                    return Pbc.dist(Anchor, vec) < params.Distance;
+                default:
+                    throw std::runtime_error("Invalid center");
+                }
+
             });
 
         // std::cout << Frame.debugString() << std::endl;
