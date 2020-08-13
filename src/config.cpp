@@ -16,6 +16,9 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <iostream>
+
+#include "pugixml.hpp"
 
 #include "config.h"
 
@@ -47,6 +50,59 @@ namespace sdf
     {
         RuntimeConfig Config;
 
+        pugi::xml_document Input;
+        if(!Input.load(s))
+        {
+            throw std::runtime_error("Failed to parse input");
+        }
+        Config.XtcFile = Input.child("sdf-run").child("input")
+            .child("trajectory").text().as_string();
+        Config.GroFile = Input.child("sdf-run").child("input")
+            .child("structure").text().as_string();
+
+        for(const auto& AtomProp: Input.child("atom-properties").children("atom"))
+        {
+            const char* NameRaw = AtomProp.attribute("name").as_string();
+            if(NameRaw == nullptr)
+            {
+                throw std::runtime_error("Atom property with empty name");
+            }
+            const std::string Name(NameRaw);
+            const auto& ChargeNode = AtomProp.child("charge");
+            if(ChargeNode.empty())
+            {
+                continue;
+            }
+
+            AtomProperty Props;
+            Props.Charge = ChargeNode.text().as_int();
+            Config.AtomProperties[Name] = std::move(Props);
+        }
+
+        for(const auto& Basis: Input.child("sdf-run").child("bases")
+                .children("basis"))
+        {
+            Parameters Params;
+            Params.Anchor = strip(Basis.child("anchor").text().as_string());
+            Params.AtomX = strip(Basis.child("x").text().as_string());
+            Params.AtomXY = strip(Basis.child("xy").text().as_string());
+            Params.Distance = std::atof(
+                strip(Basis.child("search-radius").text().as_string()).c_str());
+            Params.SliceThickness = std::atof(
+                strip(Basis.child("thickness").text().as_string()).c_str());
+            for(const auto& Exclude: Basis.child("excludes").children("exclude"))
+            {
+                Params.OtherAtoms.insert(strip(Exclude.text().as_string()));
+            }
+            Config.Params.emplace_back(std::move(Params));
+        }
+
+        return Config;
+    }
+
+    RuntimeConfig RuntimeConfig :: readLegacy(std::istream& s)
+    {
+        RuntimeConfig Config;
         std::string Buffer;
 
         // XTC filename
@@ -112,4 +168,29 @@ namespace sdf
         f.close();
         return p;
     }
+
+    void RuntimeConfig :: printXml() const
+    {
+        std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+        std::cout << "<sdf-run>" << std::endl;
+        std::cout << "<input>" << std::endl;
+        std::cout << "<trajectory>" << XtcFile << "</trajectory>" << std::endl;
+        std::cout << "<structure>" << GroFile << "</structure>" << std::endl;
+        std::cout << "</input>" << std::endl;
+        std::cout << "<config/>" << std::endl;
+        std::cout << "<bases>" << std::endl;
+        for(const auto& Param: Params)
+        {
+            std::cout << "<basis>" << std::endl;
+            std::cout << "<anchor>" << Param.Anchor << "</anchor>" << std::endl;
+            std::cout << "<x>" << Param.AtomX << "</x>" << std::endl;
+            std::cout << "<xy>" << Param.AtomXY << "</xy>" << std::endl;
+            std::cout << "<search-radius>" << Param.Distance << "</search-radius>" << std::endl;
+            std::cout << "<thickness>" << Param.SliceThickness << "</thickness>" << std::endl;
+            std::cout << "<excludes/>" << std::endl;
+            std::cout << "</basis>" << std::endl;
+        }
+        std::cout << "</bases>\n</sdf-run>" << std::endl;
+    }
+
 }

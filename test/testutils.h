@@ -26,6 +26,7 @@ namespace TestGlobal
 {
     static std::random_device Dev;
     static std::mt19937 RandAlgo(Dev());
+    constexpr float FloatMargin = 0.0002;
 }
 
 inline float randUni(float low, float high)

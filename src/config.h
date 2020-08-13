@@ -21,6 +21,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "trajectory.h"
 
@@ -55,10 +56,20 @@ namespace sdf
         HCenter Center;
     };
 
+    struct AtomProperty
+    {
+        int8_t Charge;
+    };
+
+    using AtomPropertyMap = std::unordered_map<std::string, AtomProperty>;
+
     struct RuntimeConfig
     {
         static RuntimeConfig read(std::istream& s);
         static RuntimeConfig readFromFile(const std::string& s);
+        static RuntimeConfig readLegacy(std::istream& s);
+
+        void printXml() const;
 
         std::string XtcFile;
         std::string GroFile;
@@ -69,6 +80,7 @@ namespace sdf
         bool Progress = false;
         size_t ThreadCount = 0;
         bool AverageOverFrameCount = false;
+        AtomPropertyMap AtomProperties;
     };
 
 }

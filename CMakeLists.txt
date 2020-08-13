@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic-errors -Werror")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 # Add march=native?
 include(CheckCXXCompilerFlag)
@@ -19,6 +20,8 @@ endif()
 find_package(Threads REQUIRED)
 find_package(Eigen3 3.3 QUIET NO_MODULE)
 find_package(Catch2 QUIET)
+
+find_package(pugixml REQUIRED)
 
 IF(NOT EIGEN3_INCLUDE_DIR)
   set(LEGACY_EIGEN ON)
@@ -51,6 +54,7 @@ IF(LEGACY_EIGEN)
 ELSE()
   target_link_libraries(sdf PUBLIC Eigen3::Eigen)
 ENDIF()
+target_link_libraries(sdf PUBLIC pugixml)
 
 set(TestFiles
   test/test-xtcio.cpp
@@ -68,6 +72,7 @@ IF(Catch2_FOUND)
     target_link_libraries(mdtest PUBLIC Eigen3::Eigen)
   ENDIF()
   target_link_libraries(mdtest PUBLIC Catch2::Catch2)
+  target_link_libraries(mdtest PUBLIC pugixml)
 
   target_include_directories(mdtest PRIVATE src)
   include(CTest)

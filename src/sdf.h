@@ -20,6 +20,11 @@
 
 #include <type_traits>
 #include <unordered_set>
+#include <atomic>
+#include <thread>
+#include <mutex>
+#include <iomanip>
+#include <stdexcept>
 
 #include "utils.h"
 #include "trajectory.h"
@@ -81,28 +86,52 @@ namespace libmd
 
 namespace sdf
 {
+    struct DistCountTraits
+    {
+        using ValueType = uint64_t;
+        static const ValueType Zero;
+    };
+
+    struct DistChargeTraits
+    {
+        using ValueType = int64_t;
+        static const ValueType Zero;
+    };
+
+    struct DistDetailedCountTraits
+    {
+        using ValueType = std::unordered_map<std::string, uint64_t>;
+        static const ValueType Zero;
+    };
+
+    template <class DistTraits>
     class Distribution2
     {
     public:
-        void buildGrid();
-        void cornerLow(float x, float y);
-        void cornerHigh(float x, float y);
-        void resolution(size_t n);
-        void add(float x, float y);
-        uint32_t count(size_t ix, size_t iy) const;
+        inline void buildGrid();
+        inline void cornerLow(float x, float y);
+        inline void cornerHigh(float x, float y);
+        inline void resolution(size_t n);
+        static inline typename DistTraits::ValueType
+        deltaFromAtom(const libmd::AtomIdentifier& atom, const RuntimeConfig& config);
+        inline void delta(float x, float y, typename DistTraits::ValueType d);
+        inline void add(float x, float y);
+        inline typename DistTraits::ValueType value(size_t ix, size_t iy) const;
 
-        std::string prettyPrint() const;
-        std::string jsonMesh(bool avg_over_frames) const;
+        inline std::string prettyPrint() const;
+        inline std::string jsonMesh(bool avg_over_frames) const;
+        inline std::string jsonValue(
+            const typename DistTraits::ValueType& x, bool avg_over_frames) const;
 
-        void addSpecial(const std::string& name, std::array<float, 2> coord);
+        inline void addSpecial(const std::string& name, std::array<float, 2> coord);
 
         size_t FrameCount;
 
     private:
-        size_t index(size_t ix, size_t iy) const;
-        size_t index(float x, float y) const;
+        inline size_t index(size_t ix, size_t iy) const;
+        inline size_t index(float x, float y) const;
 
-        std::vector<uint32_t> Count;
+        std::vector<typename DistTraits::ValueType> Count;
         std::array<float, 2> CornerLow;
         std::array<float, 2> CornerHigh;
         size_t Resolution;    // Number of grid cells in each direction
@@ -230,7 +259,409 @@ namespace sdf
         return Result;
     }
 
-    Distribution2 run(const RuntimeConfig& config);
+    // A Dummy type to force the use of specialized deltaFromAtom();
+    template<typename T> struct ForceSpecialization: public std::false_type {};
+
+    template <class DistTraits>
+    inline typename DistTraits::ValueType Distribution2<DistTraits> ::
+    deltaFromAtom(const libmd::AtomIdentifier& atom, const RuntimeConfig& config)
+    {
+        UNUSED(atom); UNUSED(config);
+        static_assert(ForceSpecialization<DistTraits>::value,
+                      "Need implementation of deltaFromAtom()");
+    }
+
+    template <>
+    inline typename DistCountTraits::ValueType Distribution2<DistCountTraits> ::
+    deltaFromAtom(const libmd::AtomIdentifier& atom, const RuntimeConfig& config)
+    {
+        UNUSED(atom); UNUSED(config);
+        return 1;
+    }
+
+    template <>
+    inline typename DistChargeTraits::ValueType Distribution2<DistChargeTraits> ::
+    deltaFromAtom(const libmd::AtomIdentifier& atom, const RuntimeConfig& config)
+    {
+        return config.AtomProperties.at(atom.Name).Charge;
+    }
+
+    template <>
+    inline typename DistDetailedCountTraits::ValueType Distribution2<DistDetailedCountTraits> ::
+    deltaFromAtom(const libmd::AtomIdentifier& atom, const RuntimeConfig& _)
+    {
+        UNUSED(_);
+        typename DistDetailedCountTraits::ValueType Delta;
+        Delta[atom.Name] = 1;
+        return Delta;
+    }
+
+    template <class DistTraits>
+    inline Distribution2<DistTraits> run(const RuntimeConfig& config)
+    {
+        libmd::Trajectory t;
+        t.open(config.XtcFile, config.GroFile);
+
+        Distribution2<DistTraits> Result;
+        if(config.AbsoluteHistRange)
+        {
+            Result.cornerLow(-0.5 * config.HistRange,
+                             -0.5 * config.HistRange);
+            Result.cornerHigh(0.5 * config.HistRange,
+                              0.5 * config.HistRange);
+        }
+        else
+        {
+            Result.cornerLow(-(t.meta().BoxDim[0][0]) * config.HistRange,
+                             -(t.meta().BoxDim[1][1]) * config.HistRange);
+            Result.cornerHigh(t.meta().BoxDim[0][0] * config.HistRange,
+                              t.meta().BoxDim[1][1] * config.HistRange);
+        }
+        Result.resolution(config.Resolution);
+        Result.buildGrid();
+
+        t.nextFrame();
+        {
+            auto FirstFrame = prepareFrame(config.Params[0], t);
+            auto AnchorName = config.Params[0].Anchor.toStr();
+            auto Anchor = FirstFrame.extraAtoms().at(config.Params[0].Anchor);
+            auto AtomXName = config.Params[0].AtomX.toStr();
+            auto AtomX = FirstFrame.extraAtoms().at(config.Params[0].AtomX);
+            auto AtomXYName = config.Params[0].AtomXY.toStr();
+            auto AtomXY = FirstFrame.extraAtoms().at(config.Params[0].AtomXY);
+
+            Result.addSpecial(AnchorName, {Anchor[0], Anchor[1]});
+            Result.addSpecial(AtomXName, {AtomX[0], AtomX[1]});
+            Result.addSpecial(AtomXYName, {AtomXY[0], AtomXY[1]});
+        }
+
+        // Make sure the atoms specified in the input exist.
+        for(const auto& param: config.Params)
+        {
+            if(!t.hasAtom(param.AtomX))
+            {
+                throw std::runtime_error(std::string("Unknown atom: ") +
+                                         param.AtomX.toStr());
+            }
+            if(!t.hasAtom(param.AtomXY))
+            {
+                throw std::runtime_error(std::string("Unknown atom: ") +
+                                         param.AtomXY.toStr());
+            }
+            if(!t.hasAtom(param.Anchor))
+            {
+                throw std::runtime_error(std::string("Unknown atom: ") +
+                                         param.Anchor.toStr());
+            }
+        }
+
+        t.close();
+        t.clear();
+        t.open(config.XtcFile, config.GroFile);
+
+        std::mutex HistLock;
+        std::mutex FrameLock;
+        std::vector<std::thread> Threads;
+
+        for(size_t i = 0; i < config.ThreadCount; i++)
+        {
+            Threads.emplace_back(std::thread([&]()
+            {
+                while(true)
+                {
+                    FrameLock.lock();
+                    if(!t.nextFrame())
+                    {
+                        FrameLock.unlock();
+                        break;
+                    }
+                    const auto Frame = t.snapshot();
+                    FrameLock.unlock();
+
+                    for(const auto& Params: config.Params)
+                    {
+                        auto Frame = prepareFrame(Params, t);
+                        HistLock.lock();
+                        const auto Shot = Frame.snapshot();
+                        for(size_t AtomIdx = 0; AtomIdx < Shot.size(); AtomIdx++)
+                        {
+                            const auto& Vec = Shot.vec(AtomIdx);
+                            const auto& Atom = Shot.atomId(AtomIdx);
+                            try
+                            {
+                                Result.delta(Vec[0], Vec[1],
+                                             Distribution2<DistTraits>::
+                                             deltaFromAtom(Atom, config));
+                            }
+                            catch(std::out_of_range)
+                            {
+                            }
+                        }
+                        HistLock.unlock();
+                    }
+                    if(config.Progress)
+                    {
+                        std::cerr << "." << std::flush;
+                    }
+                }
+            }));
+        }
+
+        for(auto& Thread: Threads)
+        {
+            Thread.join();
+        }
+
+        if(config.Progress) { std::cerr << std::endl; }
+        t.close();
+        Result.FrameCount = t.countFrames();
+        return Result;
+    }
+
+    template <class DistTraits>
+    inline void Distribution2<DistTraits> :: cornerLow(float x, float y)
+    {
+        CornerLow[0] = x;
+        CornerLow[1] = y;
+    }
+
+    template <class DistTraits>
+    inline void Distribution2<DistTraits> :: cornerHigh(float x, float y)
+    {
+        CornerHigh[0] = x;
+        CornerHigh[1] = y;
+    }
+
+    template <class DistTraits>
+    inline void Distribution2<DistTraits> :: resolution(size_t n)
+    {
+        Resolution = n;
+    }
+
+    template <class DistTraits>
+    inline void Distribution2<DistTraits> :: buildGrid()
+    {
+        Count.clear();
+        Count.resize(Resolution * Resolution, DistTraits::Zero);
+    }
+
+    template <class DistTraits>
+    inline void Distribution2<DistTraits> :: delta(
+        float x, float y, typename DistTraits::ValueType d)
+    {
+        Count.at(index(x, y)) += d;
+    }
+
+    template <>
+    inline void Distribution2<DistDetailedCountTraits> :: delta(
+        float x, float y, typename DistDetailedCountTraits::ValueType d)
+    {
+        const auto Pair = std::begin(d);
+        auto& Map = Count.at(index(x, y));
+        auto Existing = Map.find(Pair->first);
+        if(Existing == std::end(Map))
+        {
+            Map[Pair -> first] = Pair -> second;
+        }
+        else
+        {
+            Map[Pair -> first] += Pair -> second;
+        }
+    }
+
+    template <class DistTraits>
+    inline void Distribution2<DistTraits> :: add(float x, float y)
+    {
+        delta(x, y, 1);
+    }
+
+    template <class DistTraits>
+    inline typename DistTraits::ValueType Distribution2<DistTraits> ::
+    value(size_t ix, size_t iy) const
+    {
+        return Count.at(index(ix, iy));
+    }
+
+    template <class DistTraits>
+    inline size_t Distribution2<DistTraits> :: index(size_t ix, size_t iy) const
+    {
+        if(ix >= Resolution || iy >= Resolution)
+        {
+            throw std::out_of_range("Grid index out of range");
+        }
+        return ix * Resolution + iy;
+    }
+
+    template <class DistTraits>
+    inline size_t Distribution2<DistTraits> :: index(float x, float y) const
+    {
+        if(x < CornerLow[0] || x >= CornerHigh[0] || y < CornerLow[1] ||
+           y >= CornerHigh[1])
+        {
+            throw std::out_of_range("Grid coordinate out of range");
+        }
+
+        size_t ix = (x - CornerLow[0]) / (CornerHigh[0] - CornerLow[0]) *
+            float(Resolution);
+        size_t iy = (y - CornerLow[1]) / (CornerHigh[1] - CornerLow[1]) *
+            float(Resolution);
+        return index(ix, iy);
+    }
+
+    template <class DistTraits>
+    inline void Distribution2<DistTraits> :: addSpecial(
+        const std::string& name, std::array<float, 2> coord)
+    {
+        Specials[name] = coord;
+    }
+
+    template <class DistTraits>
+    inline std::string Distribution2<DistTraits> :: prettyPrint() const
+    {
+        std::stringstream Formatter;
+        for(size_t y = 0; y < Resolution; y++)
+        {
+            for(size_t x = 0; x < Resolution; x++)
+            {
+                Formatter << std::setw(8) << value(x, y);
+            }
+            Formatter << "\n";
+        }
+        return Formatter.str();
+    }
+
+    template <class DistTraits>
+    inline std::string Distribution2<DistTraits> :: jsonValue(
+        const typename DistTraits::ValueType& x, bool avg_over_frames) const
+    {
+        std::stringstream Formatter;
+        if(avg_over_frames)
+        {
+            Formatter << float(x) / float(FrameCount);
+        }
+        else
+        {
+            Formatter << x;
+        }
+        return Formatter.str();
+    }
+
+    template <>
+    inline std::string Distribution2<DistDetailedCountTraits> :: jsonValue(
+        const typename DistDetailedCountTraits::ValueType& x, bool avg_over_frames) const
+    {
+        if(x.empty())
+        {
+            return "{}";
+        }
+        std::stringstream Formatter;
+        Formatter << "{\n";
+        for(const auto& Pair: x)
+        {
+            Formatter << "  \"" << Pair.first << "\": ";
+            if(avg_over_frames)
+            {
+                Formatter << float(Pair.second) / float(FrameCount);
+            }
+            else
+            {
+                Formatter << float(Pair.second);
+            }
+            Formatter << ",\n";
+        }
+        Formatter.seekp(-2, Formatter.cur);
+        Formatter << "} ";
+        return Formatter.str();
+    }
+
+    template <class DistTraits>
+    inline std::string Distribution2<DistTraits> :: jsonMesh(bool avg_over_frames) const
+    {
+        std::stringstream Formatter;
+        Formatter << "{\n";
+        Formatter << "\"c\": [";
+        for(size_t y = 0; y < Resolution; y++)
+        {
+            Formatter << "[";
+            for(size_t x = 0; x < Resolution; x++)
+            {
+                Formatter << jsonValue(value(x, y), avg_over_frames);
+                if(x < Resolution - 1)
+                {
+                    Formatter << ", ";
+                }
+            }
+            Formatter << "]";
+            if(y < Resolution - 1)
+            {
+                Formatter << ",";
+                Formatter << "\n";
+            }
+        }
+        Formatter << "],\n";
+
+        // Output the mesh for the grid. The structure of the mesh is
+        // documented at
+        // https://matplotlib.org/api/_as_gen/matplotlib.axes.Axes.pcolormesh.html#matplotlib.axes.Axes.pcolormesh
+        Formatter << "\"x\": [";
+        float XSize = CornerHigh[0] - CornerLow[0];
+        float CellSizeX = XSize / float(Resolution);
+        for(size_t iy = 0; iy <= Resolution; iy++)
+        {
+            Formatter << "[";
+            for(size_t ix = 0; ix <= Resolution; ix++)
+            {
+                Formatter << float(ix) * CellSizeX + CornerLow[0];
+                if(ix < Resolution)
+                {
+                    Formatter << ", ";
+                }
+            }
+            Formatter << "]";
+            if(iy < Resolution)
+            {
+                Formatter << ",";
+                Formatter << "\n";
+            }
+        }
+        Formatter << "],\n";
+
+        Formatter << "\"y\": [";
+        float YSize = CornerHigh[1] - CornerLow[1];
+        float CellSizeY = YSize / float(Resolution);
+        for(size_t iy = 0; iy <= Resolution; iy++)
+        {
+            Formatter << "[";
+            float y = float(iy) * CellSizeY + CornerLow[1];
+            for(size_t ix = 0; ix <= Resolution; ix++)
+            {
+                Formatter << y;
+                if(ix < Resolution)
+                {
+                    Formatter << ", ";
+                }
+            }
+            Formatter << "]";
+            if(iy < Resolution)
+            {
+                Formatter << ",";
+                Formatter << "\n";
+            }
+        }
+        Formatter << "],\n";
+
+        Formatter << "\"specials\": {";
+        for(const auto& SpecialPair: Specials)
+        {
+            Formatter << "\"" << SpecialPair.first << "\": [";
+            Formatter << SpecialPair.second[0] << ", "
+                      << SpecialPair.second[1] << "],\n";
+        }
+        Formatter.seekp(-2, Formatter.cur);
+        Formatter << "\n}}\n";
+
+        return Formatter.str();
+    }
 
 } // namespace sdf
 

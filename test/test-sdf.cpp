@@ -50,9 +50,9 @@ TEST_CASE("Rotation")
         v3 v2Rot = Rot * v2;
 
         CHECK(v1Rot.isApprox(v3(v1.norm(), 0.0, 0.0)));
-        CHECK(v2Rot.norm() == Approx(v2.norm()).margin(0.0001));
-        CHECK(v2Rot[2] == Approx(0.0f).margin(0.0001));
-        CHECK(v2Rot.dot(v1Rot) == Approx(v1.dot(v2)).margin(0.0001));
+        CHECK(v2Rot.norm() == Approx(v2.norm()).margin(TestGlobal::FloatMargin));
+        CHECK(v2Rot[2] == Approx(0.0f).margin(TestGlobal::FloatMargin));
+        CHECK(v2Rot.dot(v1Rot) == Approx(v1.dot(v2)).margin(TestGlobal::FloatMargin));
         CHECK(v2Rot[1] >= 0.0);
     }
 }
@@ -60,16 +60,26 @@ TEST_CASE("Rotation")
 TEST_CASE("Config reading 1 run")
 {
     std::stringstream ss;
-    ss << "test.xtc\n"
-       << "test.gro\n"
-       << "+++\n"
-       << "18+BCDEF\n"
-       << "17+O2\n"
-       << "17+C65\n"
-       << "100\n"
-       << "101\n"
-       << "17+H10\n"
-       << "17+H11\n";
+    ss << "<sdf-run>"
+"  <input>"
+"    <trajectory>test.xtc</trajectory>"
+"    <structure>test.gro</structure>"
+"  </input>"
+"  <config/>"
+"  <bases>"
+"    <basis>"
+"      <anchor>18+BCDEF</anchor>"
+"      <x>17+O2</x>"
+"      <xy>17+C65</xy>"
+"      <search-radius>100</search-radius>"
+"      <thickness>101</thickness>"
+"      <excludes>"
+"        <exclude>17+H10</exclude>"
+"        <exclude>17+H11</exclude>"
+"      </excludes>"
+"    </basis>"
+"  </bases>"
+"</sdf-run>";
 
     auto Config = sdf::RuntimeConfig::read(ss);
     CHECK(Config.XtcFile == "test.xtc");
@@ -90,24 +100,37 @@ TEST_CASE("Config reading 1 run")
 TEST_CASE("Config reading 2 runs")
 {
     std::stringstream ss;
-    ss << "test.xtc\n"
-       << "test.gro\n"
-       << "+++\n"
-       << "18+BCDEF\n"
-       << "17+O2\n"
-       << "17+C65\n"
-       << "100\n"
-       << "101\n"
-       << "17+H10\n"
-       << "17+H11\n"
-       << "+++\n"
-       << "17+O2\n"
-       << "18+BCDEF\n"
-       << "17+C65\n"
-       << "99\n"
-       << "98\n"
-       << "17+H12\n"
-       << "17+H13";
+    ss << "<sdf-run>"
+"  <input>"
+"    <trajectory>test.xtc</trajectory>"
+"    <structure>test.gro</structure>"
+"  </input>"
+"  <config/>"
+"  <bases>"
+"    <basis>"
+"      <anchor>18+BCDEF</anchor>"
+"      <x>17+O2</x>"
+"      <xy>17+C65</xy>"
+"      <search-radius>100</search-radius>"
+"      <thickness>101</thickness>"
+"      <excludes>"
+"        <exclude>17+H10</exclude>"
+"        <exclude>17+H11</exclude>"
+"      </excludes>"
+"    </basis>"
+"    <basis>"
+"      <anchor>17+O2</anchor>"
+"      <x>18+BCDEF</x>"
+"      <xy>17+C65</xy>"
+"      <search-radius>99</search-radius>"
+"      <thickness>98</thickness>"
+"      <excludes>"
+"        <exclude>17+H12</exclude>"
+"        <exclude>17+H13</exclude>"
+"      </excludes>"
+"    </basis>"
+"  </bases>"
+"</sdf-run>";
 
     auto Config = sdf::RuntimeConfig::read(ss);
     CHECK(Config.XtcFile == "test.xtc");
@@ -138,22 +161,21 @@ TEST_CASE("Config reading 2 runs")
 
 TEST_CASE("Distribution grid")
 {
-    sdf::Distribution2 Dist;
+    sdf::Distribution2<sdf::DistCountTraits> Dist;
     Dist.cornerLow(-1, -1);
     Dist.cornerHigh(1, 1);
     Dist.resolution(2);
     Dist.buildGrid();
-    CHECK(Dist.count(0, 0) == 0);
-    CHECK(Dist.count(1, 0) == 0);
-    CHECK(Dist.count(0, 1) == 0);
-    CHECK(Dist.count(1, 1) == 0);
-    std::cerr << Dist.prettyPrint() << std::endl;
-    CHECK_THROWS(Dist.count(1, 2) == 0);
-    CHECK_THROWS(Dist.count(2, 1) == 0);
+    CHECK(Dist.value(0, 0) == 0);
+    CHECK(Dist.value(1, 0) == 0);
+    CHECK(Dist.value(0, 1) == 0);
+    CHECK(Dist.value(1, 1) == 0);
+    CHECK_THROWS(Dist.value(1, 2) == 0);
+    CHECK_THROWS(Dist.value(2, 1) == 0);
 
     Dist.add(-0.5, 0.5);
-    CHECK(Dist.count(0, 0) == 0);
-    CHECK(Dist.count(1, 0) == 0);
-    CHECK(Dist.count(0, 1) == 1);
-    CHECK(Dist.count(1, 1) == 0);
+    CHECK(Dist.value(0, 0) == 0);
+    CHECK(Dist.value(1, 0) == 0);
+    CHECK(Dist.value(0, 1) == 1);
+    CHECK(Dist.value(1, 1) == 0);
 }

@@ -116,6 +116,11 @@ namespace libmd
             return Vecs[i];
         }
 
+        const AtomIdentifier& atomId(size_t i) const
+        {
+            return AtomNames[i];
+        }
+
         const XtcFile::FrameMeta& meta() const { return Meta; }
         bool hasAtom(const AtomIdentifier& name)
         {
@@ -200,6 +205,11 @@ namespace libmd
         const V3Map& vec(size_t i) const
         {
             return Vecs[i];
+        }
+
+        const AtomIdentifier& atomId(size_t i) const
+        {
+            return AtomNames[i];
         }
 
         const XtcFile::FrameMeta& meta() const { return Meta; }

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdf-run>
+  <input>
+    <trajectory>test.xtc</trajectory>
+    <structure>test.gro</structure>
+  </input>
+  <config/>
+  <bases>
+    <basis>
+      <anchor>18+BCDEF</anchor>
+      <x>17+O2</x>
+      <xy>17+C65</xy>
+      <search-radius>100</search-radius>
+      <thickness>101</thickness>
+      <excludes>
+        <exclude>17+H10</exclude>
+        <exclude>17+H11</exclude>
+      </excludes>
+    </basis>
+    <basis>
+      <anchor>17+O2</anchor>
+      <x>18+BCDEF</x>
+      <xy>17+C65</xy>
+      <search-radius>99</search-radius>
+      <thickness>98</thickness>
+      <excludes>
+        <exclude>17+H12</exclude>
+        <exclude>17+H13</exclude>
+      </excludes>
+    </basis>
+  </bases>
+</sdf-run>

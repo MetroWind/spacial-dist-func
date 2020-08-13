@@ -56,35 +56,32 @@ void help(const std::string& prog_name)
         "\n"
 "-h, --help                     Show this messages\n\n"
 "-t N, --threads N              Number of threads to use. Default:\n"
-"                               Number of CPU cores.\n\n"
+"    Number of CPU cores.\n\n"
 "-d X, --distance-cutoff X      The cutoff distance when selecting\n"
-"                               nearest atoms, in XTC native unit.\n"
-"                               Override the value specified in the\n"
-"                               input file.\n\n"
+"    nearest atoms, in XTC native unit. Override the value specified in\n"
+"    the input file.\n\n"
 "-s X, --slice-thickness X      The thickness of slice of projection,\n"
-"                               in XTC native unit. Override the value\n"
-"                               specified in the input file.\n\n"
+"    in XTC native unit. Override the value specified in the input\n"
+"    file.\n\n"
 "-r N, --resolution N           The resolution of the histogram grid.\n"
-"                               This is the number of grid cells in\n"
-"                               each direction. Default: 40\n\n"
+"    This is the number of grid cells in each direction. Default: 40\n\n"
 "--hist-range X                 The size of the 2D historgram region,\n"
-"                               denoted by a ratio of the box size in\n"
-"                               the XTC file (only the x and y size\n"
-"                               matter). For example if this is set to\n"
-"                               0.1, and the XTC box size is 3x4, the\n"
-"                               histogram box is then 0.3x0.4. This\n"
-"                               box is divided into resolution^2\n"
-"                               number of grid cells. Default: 0.1\n\n"
+"    denoted by a ratio of the box size in the XTC file (only the x and\n"
+"    y size matter). For example if this is set to 0.1, and the XTC box\n"
+"    size is 3x4, the histogram box is then 0.3x0.4. This box is\n"
+"    divided into resolution^2 number of grid cells. Default: 0.1\n\n"
 "--hist-range-abs X             The absolute size of the 2D historgram\n"
-"                               region. This is mutually exclusive with\n"
-"                               --hist-range. Default: use --hist-range\n"
-"                               0.1\n\n"
+"    region. This is mutually exclusive with --hist-range. Default: use\n"
+"    --hist-range 0.1\n\n"
 "-p, --progress                 Show a “progress bar”.\n\n"
 "-a, --average                  Average the result over number of\n"
-"                               frames.\n\n"
+"    frames.\n\n"
 "--center TYPE                  The type of center atom to calculate\n"
-"                               distance from. Valid types are\n"
-"                               'anchor', 'x', and 'xy'. Default: x.\n\n"
+"    distance from. Valid types are 'anchor', 'x', and 'xy'. Default:\n"
+"    x.\n\n"
+"--measure TYPE                 The quantity of which to make\n"
+"    distribution. Valid arguments are 'count', 'charge', and\n"
+"    'count-per-atom'. Default: count.\n\n"
         ;
 }
 
@@ -104,6 +101,10 @@ int main(int argc, char** argv)
     bool Progress = false;
     bool Average = false;
     sdf::HCenter CenterType("x");
+    int MeasureSpecified = 0;
+    std::string Measure("count");
+    const std::unordered_set<std::string> ValidMeasures =
+        {"count", "charge", "count-per-atom"};
 
     {
         static struct option Options[] = {
@@ -117,6 +118,7 @@ int main(int argc, char** argv)
             { "progress", no_argument, nullptr, 'p' },
             { "average", no_argument, nullptr, 'a' },
             { "center", required_argument, nullptr, 'c' },
+            { "measure", required_argument, &MeasureSpecified, 1},
             { nullptr, 0, nullptr, 0 }
         };
 
@@ -157,6 +159,12 @@ int main(int argc, char** argv)
             case 'c':
                 CenterType = std::string(optarg);
                 break;
+            case 0:
+                if(MeasureSpecified == 1)
+                {
+                    Measure = optarg;
+                }
+                break;
             default:
                 usage(ProgName);
                 return -1;
@@ -169,6 +177,12 @@ int main(int argc, char** argv)
     if(argc != 1)
     {
         usage(ProgName);
+        return -1;
+    }
+
+    if(ValidMeasures.find(Measure) == std::end(ValidMeasures))
+    {
+        std::cerr << "Invalid measure: " << Measure << std::endl;
         return -1;
     }
 
@@ -213,7 +227,26 @@ int main(int argc, char** argv)
     Config.Progress = Progress;
     Config.AverageOverFrameCount = Average;
 
-    sdf::run(Config);
+    if(Measure == "count")
+    {
+        const auto Result = sdf::run<sdf::DistCountTraits>(Config);
+        std::cout << Result.jsonMesh(Config.AverageOverFrameCount);
+    }
+    else if(Measure == "charge")
+    {
+        const auto Result = sdf::run<sdf::DistChargeTraits>(Config);
+        std::cout << Result.jsonMesh(Config.AverageOverFrameCount);
+    }
+    else if(Measure == "count-per-atom")
+    {
+        const auto Result = sdf::run<sdf::DistDetailedCountTraits>(Config);
+        std::cout << Result.jsonMesh(Config.AverageOverFrameCount);
+    }
+    else
+    {
+        std::cerr << "Shit happened!" << std::endl;
+        return 1;
+    }
 
     return 0;
 }
