@@ -67,9 +67,10 @@ namespace sdf
     {
         static RuntimeConfig read(std::istream& s);
         static RuntimeConfig readFromFile(const std::string& s);
-        static RuntimeConfig readLegacy(std::istream& s);
 
+#ifndef STUPID_UBUNTU
         void printXml() const;
+#endif
 
         std::string XtcFile;
         std::string GroFile;

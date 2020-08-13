@@ -18,7 +18,9 @@
 #include <fstream>
 #include <iostream>
 
+#ifndef STUPID_UBUNTU
 #include "pugixml.hpp"
+#endif
 
 #include "config.h"
 
@@ -46,6 +48,7 @@ namespace sdf
         }
     }
 
+#ifndef STUPID_UBUNTU
     RuntimeConfig RuntimeConfig :: read(std::istream& s)
     {
         RuntimeConfig Config;
@@ -99,8 +102,9 @@ namespace sdf
 
         return Config;
     }
-
-    RuntimeConfig RuntimeConfig :: readLegacy(std::istream& s)
+#else  // #ifndef STUPID_UBUNTU
+    // Stupid Ubuntu deserves a stupid input format.
+    RuntimeConfig RuntimeConfig :: read(std::istream& s)
     {
         RuntimeConfig Config;
         std::string Buffer;
@@ -159,7 +163,7 @@ namespace sdf
 
         return Config;
     }
-
+#endif
 
     RuntimeConfig RuntimeConfig :: readFromFile(const std::string& s)
     {
@@ -169,6 +173,7 @@ namespace sdf
         return p;
     }
 
+#ifndef STUPID_UBUNTU
     void RuntimeConfig :: printXml() const
     {
         std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
@@ -192,5 +197,5 @@ namespace sdf
         }
         std::cout << "</bases>\n</sdf-run>" << std::endl;
     }
-
+#endif
 }
